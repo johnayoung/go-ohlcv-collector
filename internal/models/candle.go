@@ -1,3 +1,6 @@
+// Package models provides data structures and validation for OHLCV market data.
+// This package contains core data models for financial market data including
+// candles, gaps, jobs, and validation structures.
 package models
 
 import (
@@ -20,17 +23,25 @@ type Candle struct {
 	Interval  string    `json:"interval" db:"interval"`
 }
 
-// ValidationError represents a candle validation error
+// ValidationError represents a candle validation error with specific field context.
+// It provides structured error information including the field name that failed
+// validation and a descriptive error message.
 type ValidationError struct {
-	Field   string
-	Message string
+	Field   string // Field is the name of the field that failed validation
+	Message string // Message is a descriptive error message explaining the validation failure
 }
 
+// Error implements the error interface for ValidationError.
+// It returns a formatted string containing the field name and validation message.
 func (e ValidationError) Error() string {
 	return fmt.Sprintf("validation error for field %s: %s", e.Field, e.Message)
 }
 
-// Validate performs comprehensive validation on the candle data
+// Validate performs comprehensive validation on the candle data.
+// It validates that all price fields are valid decimal numbers greater than zero,
+// volume is non-negative, OHLC relationships are correct (high >= max(open, close),
+// low <= min(open, close)), and required fields are not empty.
+// Returns a ValidationError if any validation fails.
 func (c *Candle) Validate() error {
 	// Check timestamp is not null
 	if c.Timestamp.IsZero() {
@@ -112,32 +123,39 @@ func (c *Candle) Validate() error {
 	return nil
 }
 
-// GetOpenDecimal returns the open price as a decimal for calculations
+// GetOpenDecimal returns the open price as a decimal.Decimal for precise calculations.
+// Returns an error if the open price string cannot be parsed as a decimal.
 func (c *Candle) GetOpenDecimal() (decimal.Decimal, error) {
 	return decimal.NewFromString(c.Open)
 }
 
-// GetHighDecimal returns the high price as a decimal for calculations
+// GetHighDecimal returns the high price as a decimal.Decimal for precise calculations.
+// Returns an error if the high price string cannot be parsed as a decimal.
 func (c *Candle) GetHighDecimal() (decimal.Decimal, error) {
 	return decimal.NewFromString(c.High)
 }
 
-// GetLowDecimal returns the low price as a decimal for calculations
+// GetLowDecimal returns the low price as a decimal.Decimal for precise calculations.
+// Returns an error if the low price string cannot be parsed as a decimal.
 func (c *Candle) GetLowDecimal() (decimal.Decimal, error) {
 	return decimal.NewFromString(c.Low)
 }
 
-// GetCloseDecimal returns the close price as a decimal for calculations
+// GetCloseDecimal returns the close price as a decimal.Decimal for precise calculations.
+// Returns an error if the close price string cannot be parsed as a decimal.
 func (c *Candle) GetCloseDecimal() (decimal.Decimal, error) {
 	return decimal.NewFromString(c.Close)
 }
 
-// GetVolumeDecimal returns the volume as a decimal for calculations
+// GetVolumeDecimal returns the volume as a decimal.Decimal for precise calculations.
+// Returns an error if the volume string cannot be parsed as a decimal.
 func (c *Candle) GetVolumeDecimal() (decimal.Decimal, error) {
 	return decimal.NewFromString(c.Volume)
 }
 
-// GetTypicalPrice calculates the typical price: (High + Low + Close) / 3
+// GetTypicalPrice calculates the typical price using the formula: (High + Low + Close) / 3.
+// This is commonly used in technical analysis as a representative price for the period.
+// Returns an error if any of the price fields cannot be parsed as decimals.
 func (c *Candle) GetTypicalPrice() (decimal.Decimal, error) {
 	high, err := c.GetHighDecimal()
 	if err != nil {
@@ -159,7 +177,9 @@ func (c *Candle) GetTypicalPrice() (decimal.Decimal, error) {
 	return sum.Div(three), nil
 }
 
-// GetBodySize calculates the absolute difference between open and close prices
+// GetBodySize calculates the absolute difference between open and close prices.
+// This represents the size of the candle body and is useful for technical analysis.
+// Returns an error if open or close prices cannot be parsed as decimals.
 func (c *Candle) GetBodySize() (decimal.Decimal, error) {
 	open, err := c.GetOpenDecimal()
 	if err != nil {
@@ -174,7 +194,9 @@ func (c *Candle) GetBodySize() (decimal.Decimal, error) {
 	return close.Sub(open).Abs(), nil
 }
 
-// GetRange calculates the price range: High - Low
+// GetRange calculates the price range using the formula: High - Low.
+// This represents the total price movement during the time period.
+// Returns an error if high or low prices cannot be parsed as decimals.
 func (c *Candle) GetRange() (decimal.Decimal, error) {
 	high, err := c.GetHighDecimal()
 	if err != nil {
@@ -189,7 +211,9 @@ func (c *Candle) GetRange() (decimal.Decimal, error) {
 	return high.Sub(low), nil
 }
 
-// IsBullish returns true if close > open
+// IsBullish returns true if the close price is greater than the open price.
+// This indicates positive price movement during the time period.
+// Returns an error if open or close prices cannot be parsed as decimals.
 func (c *Candle) IsBullish() (bool, error) {
 	open, err := c.GetOpenDecimal()
 	if err != nil {
@@ -204,7 +228,9 @@ func (c *Candle) IsBullish() (bool, error) {
 	return close.GreaterThan(open), nil
 }
 
-// IsBearish returns true if close < open
+// IsBearish returns true if the close price is less than the open price.
+// This indicates negative price movement during the time period.
+// Returns an error if open or close prices cannot be parsed as decimals.
 func (c *Candle) IsBearish() (bool, error) {
 	open, err := c.GetOpenDecimal()
 	if err != nil {
@@ -219,7 +245,10 @@ func (c *Candle) IsBearish() (bool, error) {
 	return close.LessThan(open), nil
 }
 
-// IsDoji returns true if open approximately equals close (within threshold)
+// IsDoji returns true if the open price approximately equals the close price within the given threshold.
+// A doji candle indicates indecision in the market with little net price movement.
+// The threshold parameter defines the maximum acceptable difference between open and close.
+// Returns an error if the body size cannot be calculated.
 func (c *Candle) IsDoji(threshold decimal.Decimal) (bool, error) {
 	bodySize, err := c.GetBodySize()
 	if err != nil {
@@ -229,7 +258,9 @@ func (c *Candle) IsDoji(threshold decimal.Decimal) (bool, error) {
 	return bodySize.LessThanOrEqual(threshold), nil
 }
 
-// GetPriceChange calculates the price change: Close - Open
+// GetPriceChange calculates the absolute price change using the formula: Close - Open.
+// Positive values indicate price appreciation, negative values indicate depreciation.
+// Returns an error if open or close prices cannot be parsed as decimals.
 func (c *Candle) GetPriceChange() (decimal.Decimal, error) {
 	open, err := c.GetOpenDecimal()
 	if err != nil {
@@ -244,7 +275,9 @@ func (c *Candle) GetPriceChange() (decimal.Decimal, error) {
 	return close.Sub(open), nil
 }
 
-// GetPriceChangePercent calculates the percentage price change: ((Close - Open) / Open) * 100
+// GetPriceChangePercent calculates the percentage price change using the formula: ((Close - Open) / Open) * 100.
+// This normalizes price changes for comparison across different price levels.
+// Returns an error if open or close prices cannot be parsed, or if open price is zero.
 func (c *Candle) GetPriceChangePercent() (decimal.Decimal, error) {
 	open, err := c.GetOpenDecimal()
 	if err != nil {
@@ -264,13 +297,25 @@ func (c *Candle) GetPriceChangePercent() (decimal.Decimal, error) {
 	return priceChange.Div(open).Mul(hundred), nil
 }
 
-// String returns a string representation of the candle
+// String returns a human-readable string representation of the candle.
+// The format includes all key fields: pair, interval, timestamp, and OHLCV data.
+// This method implements the fmt.Stringer interface.
 func (c *Candle) String() string {
 	return fmt.Sprintf("Candle{Pair: %s, Interval: %s, Timestamp: %s, O: %s, H: %s, L: %s, C: %s, V: %s}",
 		c.Pair, c.Interval, c.Timestamp.Format(time.RFC3339), c.Open, c.High, c.Low, c.Close, c.Volume)
 }
 
-// NewCandle creates a new candle with validation
+// NewCandle creates a new Candle instance with the provided parameters and validates it.
+// All price and volume values should be provided as decimal strings.
+// The timestamp should represent the start time of the candle period.
+// Returns a ValidationError if any validation fails.
+//
+// Example:
+//     candle, err := NewCandle(
+//         time.Now(),
+//         "100.50", "101.00", "100.00", "100.75", "1000.5",
+//         "BTC-USD", "1m",
+//     )
 func NewCandle(timestamp time.Time, open, high, low, close, volume, pair, interval string) (*Candle, error) {
 	candle := &Candle{
 		Timestamp: timestamp,

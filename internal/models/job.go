@@ -9,32 +9,37 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// JobStatus represents the current state of a collection job
+// JobStatus represents the current state of a collection job.
+// It tracks the lifecycle from creation through completion or failure.
 type JobStatus string
 
 const (
-	StatusPending   JobStatus = "pending"
-	StatusRunning   JobStatus = "running"
-	StatusCompleted JobStatus = "completed"
-	StatusFailed    JobStatus = "failed"
+	StatusPending   JobStatus = "pending"   // StatusPending indicates the job is queued but not yet started
+	StatusRunning   JobStatus = "running"   // StatusRunning indicates the job is currently being executed
+	StatusCompleted JobStatus = "completed" // StatusCompleted indicates the job finished successfully
+	StatusFailed    JobStatus = "failed"    // StatusFailed indicates the job encountered an error
 )
 
-// JobType represents the type of data collection task
+// JobType represents the type of data collection task.
+// Different job types may have different processing requirements and priorities.
 type JobType string
 
 const (
-	JobTypeInitialSync JobType = "initial_sync"
-	JobTypeUpdate      JobType = "update"
-	JobTypeBackfill    JobType = "backfill"
+	JobTypeInitialSync JobType = "initial_sync" // JobTypeInitialSync for first-time data collection
+	JobTypeUpdate      JobType = "update"       // JobTypeUpdate for regular incremental updates
+	JobTypeBackfill    JobType = "backfill"     // JobTypeBackfill for filling historical data gaps
 )
 
-// MaxRetryAttempts defines the maximum number of retry attempts
+// MaxRetryAttempts defines the maximum number of retry attempts for failed jobs.
+// After this limit is reached, manual intervention may be required.
 const MaxRetryAttempts = 5
 
-// BackoffMultiplier for exponential backoff calculation
+// BackoffMultiplier for exponential backoff calculation.
+// Each retry delay is multiplied by this factor to prevent overwhelming external services.
 const BackoffMultiplier = 2.0
 
-// Job represents a data collection task with status tracking
+// Job represents a data collection task with comprehensive status tracking and metrics.
+// It contains all information needed to execute, monitor, and retry data collection operations.
 type Job struct {
 	ID               string    `json:"id" db:"id"`
 	Type             JobType   `json:"type" db:"type"`
@@ -51,17 +56,25 @@ type Job struct {
 	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// JobError represents validation and operational errors
+// JobError represents validation and operational errors with field-specific context.
+// It provides structured error information for debugging and user feedback.
 type JobError struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
+	Field   string `json:"field"`   // Field is the name of the field that caused the error
+	Message string `json:"message"` // Message is a descriptive error message
 }
 
+// Error implements the error interface for JobError.
+// It returns a formatted string containing the field name and error message.
 func (e JobError) Error() string {
 	return fmt.Sprintf("validation error on field '%s': %s", e.Field, e.Message)
 }
 
-// NewJob creates a new Job with default values
+// NewJob creates a new Job instance with the provided parameters and sets default values.
+// The job is created in pending status with zero progress and current timestamps.
+// All time values should be in UTC.
+//
+// Example:
+//     job := NewJob("job-123", JobTypeUpdate, "BTC-USD", start, end, "1h")
 func NewJob(id string, jobType JobType, pair string, startTime, endTime time.Time, interval string) *Job {
 	now := time.Now().UTC()
 	return &Job{
@@ -81,7 +94,9 @@ func NewJob(id string, jobType JobType, pair string, startTime, endTime time.Tim
 	}
 }
 
-// Validate performs comprehensive validation of the Job
+// Validate performs comprehensive validation of the Job fields.
+// It checks required fields, validates enums, ensures time consistency,
+// and verifies numeric constraints. Returns an error containing all validation issues found.
 func (j *Job) Validate() error {
 	var errors []JobError
 
@@ -171,7 +186,8 @@ func (j *Job) Validate() error {
 	return nil
 }
 
-// isValidJobType checks if the job type is valid
+// isValidJobType checks if the job type is one of the defined valid types.
+// Returns true if the type is valid, false otherwise.
 func (j *Job) isValidJobType() bool {
 	switch j.Type {
 	case JobTypeInitialSync, JobTypeUpdate, JobTypeBackfill:
@@ -181,7 +197,8 @@ func (j *Job) isValidJobType() bool {
 	}
 }
 
-// isValidStatus checks if the status is valid
+// isValidStatus checks if the status is one of the defined valid statuses.
+// Returns true if the status is valid, false otherwise.
 func (j *Job) isValidStatus() bool {
 	switch j.Status {
 	case StatusPending, StatusRunning, StatusCompleted, StatusFailed:
@@ -191,7 +208,8 @@ func (j *Job) isValidStatus() bool {
 	}
 }
 
-// isValidInterval checks if the interval format is valid
+// isValidInterval checks if the interval format is supported by the system.
+// Returns true if the interval is in the list of supported formats.
 func (j *Job) isValidInterval() bool {
 	validIntervals := map[string]bool{
 		"1m": true, "5m": true, "15m": true, "30m": true,
@@ -203,7 +221,9 @@ func (j *Job) isValidInterval() bool {
 
 // State Transition Methods
 
-// Start transitions the job from pending to running
+// Start transitions the job from pending to running status.
+// It clears any previous error and updates the timestamp.
+// Returns an error if the job is not in pending status.
 func (j *Job) Start() error {
 	if j.Status != StatusPending {
 		return fmt.Errorf("cannot start job: current status is %s, expected %s", j.Status, StatusPending)
@@ -215,7 +235,9 @@ func (j *Job) Start() error {
 	return nil
 }
 
-// Complete transitions the job from running to completed
+// Complete transitions the job from running to completed status.
+// It sets progress to 100%, clears any error, and updates the timestamp.
+// Returns an error if the job is not currently running.
 func (j *Job) Complete() error {
 	if j.Status != StatusRunning {
 		return fmt.Errorf("cannot complete job: current status is %s, expected %s", j.Status, StatusRunning)
@@ -228,7 +250,10 @@ func (j *Job) Complete() error {
 	return nil
 }
 
-// Fail transitions the job from running to failed
+// Fail transitions the job from running to failed status.
+// It records the error message and updates the timestamp.
+// The errorMsg parameter should contain details about the failure.
+// Returns an error if the job is not currently running.
 func (j *Job) Fail(errorMsg string) error {
 	if j.Status != StatusRunning {
 		return fmt.Errorf("cannot fail job: current status is %s, expected %s", j.Status, StatusRunning)
@@ -240,7 +265,10 @@ func (j *Job) Fail(errorMsg string) error {
 	return nil
 }
 
-// Retry transitions the job from failed back to pending for retry
+// Retry transitions the job from failed back to pending status for retry.
+// It increments the retry counter and checks against maximum attempts.
+// The previous error message is preserved for debugging.
+// Returns an error if the job cannot be retried.
 func (j *Job) Retry() error {
 	if j.Status != StatusFailed {
 		return fmt.Errorf("cannot retry job: current status is %s, expected %s", j.Status, StatusFailed)
@@ -259,7 +287,10 @@ func (j *Job) Retry() error {
 
 // Progress Tracking and Metrics Methods
 
-// UpdateProgress updates the job's progress percentage and records collected
+// UpdateProgress updates the job's progress percentage and records collected count.
+// Progress must be between 0-100, records collected must be non-negative.
+// Updates the timestamp automatically.
+// Returns an error if the values are invalid.
 func (j *Job) UpdateProgress(progress int, recordsCollected int) error {
 	if progress < 0 || progress > 100 {
 		return fmt.Errorf("invalid progress value: %d, must be between 0 and 100", progress)
@@ -275,7 +306,10 @@ func (j *Job) UpdateProgress(progress int, recordsCollected int) error {
 	return nil
 }
 
-// IncrementRecordsCollected adds to the current count of records collected
+// IncrementRecordsCollected adds to the current count of records collected.
+// The count parameter must be non-negative.
+// Updates the timestamp automatically.
+// Returns an error if the count is negative.
 func (j *Job) IncrementRecordsCollected(count int) error {
 	if count < 0 {
 		return fmt.Errorf("cannot increment by negative value: %d", count)
@@ -286,7 +320,10 @@ func (j *Job) IncrementRecordsCollected(count int) error {
 	return nil
 }
 
-// CalculateProgressFromTimeRange calculates progress based on time coverage
+// CalculateProgressFromTimeRange calculates progress percentage based on time coverage.
+// It compares the current time against the job's start and end times.
+// Returns 0 if before start time, 100 if after end time, or percentage if in range.
+// This is useful for time-based progress tracking.
 func (j *Job) CalculateProgressFromTimeRange(currentTime time.Time) int {
 	if j.StartTime.IsZero() || j.EndTime.IsZero() || currentTime.Before(j.StartTime) {
 		return 0
@@ -316,32 +353,39 @@ func (j *Job) CalculateProgressFromTimeRange(currentTime time.Time) int {
 
 // Helper Methods for Job Management
 
-// IsComplete returns true if the job is completed
+// IsComplete returns true if the job has completed successfully.
+// Completed jobs do not require further processing.
 func (j *Job) IsComplete() bool {
 	return j.Status == StatusCompleted
 }
 
-// IsFailed returns true if the job has failed
+// IsFailed returns true if the job has failed and may need retry or investigation.
+// Failed jobs can potentially be retried if within the retry limit.
 func (j *Job) IsFailed() bool {
 	return j.Status == StatusFailed
 }
 
-// IsRunning returns true if the job is currently running
+// IsRunning returns true if the job is currently being executed.
+// Running jobs should not be started again.
 func (j *Job) IsRunning() bool {
 	return j.Status == StatusRunning
 }
 
-// IsPending returns true if the job is pending
+// IsPending returns true if the job is queued and waiting to be executed.
+// Pending jobs are candidates for worker assignment.
 func (j *Job) IsPending() bool {
 	return j.Status == StatusPending
 }
 
-// CanRetry returns true if the job can be retried
+// CanRetry returns true if the job has failed but hasn't exceeded the retry limit.
+// This is used by the retry mechanism to determine eligibility.
 func (j *Job) CanRetry() bool {
 	return j.Status == StatusFailed && j.RetryCount < MaxRetryAttempts
 }
 
-// GetNextRetryDelay calculates the delay for the next retry using exponential backoff
+// GetNextRetryDelay calculates the delay for the next retry using exponential backoff.
+// The delay increases with each retry attempt, capped at 30 minutes.
+// This helps prevent overwhelming external services during outages.
 func (j *Job) GetNextRetryDelay() time.Duration {
 	if j.RetryCount == 0 {
 		return time.Minute // Base delay of 1 minute
@@ -360,7 +404,9 @@ func (j *Job) GetNextRetryDelay() time.Duration {
 	return time.Duration(delaySeconds) * time.Second
 }
 
-// GetEstimatedDuration returns the estimated total duration of the job
+// GetEstimatedDuration returns the estimated total duration of the job.
+// This is calculated from the start and end time range that needs to be processed.
+// Returns 0 if times are not set.
 func (j *Job) GetEstimatedDuration() time.Duration {
 	if j.StartTime.IsZero() || j.EndTime.IsZero() {
 		return 0
@@ -368,7 +414,9 @@ func (j *Job) GetEstimatedDuration() time.Duration {
 	return j.EndTime.Sub(j.StartTime)
 }
 
-// GetElapsedTime returns the time elapsed since the job was created
+// GetElapsedTime returns the time elapsed since the job was created.
+// This helps track how long a job has been in the system.
+// Returns 0 if creation time is not set.
 func (j *Job) GetElapsedTime() time.Duration {
 	if j.CreatedAt.IsZero() {
 		return 0
@@ -376,7 +424,9 @@ func (j *Job) GetElapsedTime() time.Duration {
 	return time.Since(j.CreatedAt)
 }
 
-// GetRemainingTime estimates the remaining time based on current progress
+// GetRemainingTime estimates the remaining time based on current progress.
+// It extrapolates from elapsed time and current progress percentage.
+// Returns 0 if the job is not running or progress is 0.
 func (j *Job) GetRemainingTime() time.Duration {
 	if j.Progress == 0 || j.Status != StatusRunning {
 		return 0
@@ -398,7 +448,9 @@ func (j *Job) GetRemainingTime() time.Duration {
 	return remainingTime
 }
 
-// GetRecordsPerSecond calculates the collection rate
+// GetRecordsPerSecond calculates the current data collection rate.
+// This metric helps monitor job performance and identify bottlenecks.
+// Returns 0 if no time has elapsed or no records collected.
 func (j *Job) GetRecordsPerSecond() decimal.Decimal {
 	elapsedTime := j.GetElapsedTime()
 	if elapsedTime <= 0 || j.RecordsCollected == 0 {
@@ -411,7 +463,9 @@ func (j *Job) GetRecordsPerSecond() decimal.Decimal {
 	return recordsCollected.Div(elapsedSeconds)
 }
 
-// Summary returns a human-readable summary of the job
+// Summary returns a human-readable summary of the job.
+// It includes key information like ID, type, pair, time range, and current status.
+// This is useful for logging and monitoring displays.
 func (j *Job) Summary() string {
 	return fmt.Sprintf("Job %s: %s %s on %s [%s to %s] - Status: %s (%d%% complete, %d records)",
 		j.ID,
@@ -426,7 +480,9 @@ func (j *Job) Summary() string {
 	)
 }
 
-// ToJSON converts the job to JSON string
+// ToJSON converts the job to a formatted JSON string.
+// The output is indented for readability.
+// Returns an error if the job cannot be marshaled.
 func (j *Job) ToJSON() (string, error) {
 	data, err := json.MarshalIndent(j, "", "  ")
 	if err != nil {
@@ -435,7 +491,9 @@ func (j *Job) ToJSON() (string, error) {
 	return string(data), nil
 }
 
-// FromJSON creates a job from JSON string
+// FromJSON creates a Job instance from a JSON string.
+// It unmarshals the JSON and validates the resulting job.
+// Returns an error if the JSON is invalid or the job fails validation.
 func FromJSON(jsonStr string) (*Job, error) {
 	var job Job
 	if err := json.Unmarshal([]byte(jsonStr), &job); err != nil {
@@ -449,7 +507,9 @@ func FromJSON(jsonStr string) (*Job, error) {
 	return &job, nil
 }
 
-// Clone creates a deep copy of the job
+// Clone creates a deep copy of the job.
+// This is useful for creating job templates or preserving job state.
+// All fields are copied by value, ensuring independence from the original.
 func (j *Job) Clone() *Job {
 	return &Job{
 		ID:               j.ID,

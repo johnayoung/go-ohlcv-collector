@@ -51,6 +51,9 @@ const (
 )
 
 // CoinbaseAdapter implements the ExchangeAdapter interface for Coinbase Advanced Trade API.
+// It provides comprehensive OHLCV data collection with rate limiting, caching, and error handling.
+// The adapter supports automatic retries, request chunking for large time ranges, and proper
+// conversion between Coinbase API formats and internal models.
 type CoinbaseAdapter struct {
 	httpClient  *http.Client
 	rateLimiter *rate.Limiter
@@ -64,7 +67,9 @@ type CoinbaseAdapter struct {
 	pairCacheMutex sync.RWMutex
 }
 
-// NewCoinbaseAdapter creates a new Coinbase exchange adapter with proper configuration.
+// NewCoinbaseAdapter creates a new Coinbase exchange adapter with default configuration.
+// The adapter is pre-configured with appropriate timeouts, rate limiting, and caching.
+// Use NewCoinbaseAdapterWithLogger to provide a custom logger instance.
 func NewCoinbaseAdapter() *CoinbaseAdapter {
 	return &CoinbaseAdapter{
 		httpClient: &http.Client{
@@ -85,13 +90,18 @@ func NewCoinbaseAdapter() *CoinbaseAdapter {
 }
 
 // NewCoinbaseAdapterWithLogger creates a new Coinbase adapter with a custom logger.
+// This allows integration with application-specific logging systems while maintaining
+// all other default configuration settings.
 func NewCoinbaseAdapterWithLogger(logger *slog.Logger) *CoinbaseAdapter {
 	adapter := NewCoinbaseAdapter()
 	adapter.logger = logger
 	return adapter
 }
 
-// FetchCandles implements the CandleFetcher interface.
+// FetchCandles implements the CandleFetcher interface for retrieving OHLCV data from Coinbase.
+// It handles request validation, time range chunking, rate limiting, and data conversion.
+// Large time ranges are automatically split into multiple API calls to respect Coinbase limits.
+// Returns candles in chronological order with pagination support via NextToken.
 func (c *CoinbaseAdapter) FetchCandles(ctx context.Context, req FetchRequest) (*FetchResponse, error) {
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
@@ -167,7 +177,9 @@ func (c *CoinbaseAdapter) FetchCandles(ctx context.Context, req FetchRequest) (*
 	return response, nil
 }
 
-// GetTradingPairs implements the PairProvider interface.
+// GetTradingPairs implements the PairProvider interface for retrieving all available trading pairs.
+// Results are cached for 5 minutes to reduce API calls and improve performance.
+// Returns both active and inactive pairs with detailed trading specifications.
 func (c *CoinbaseAdapter) GetTradingPairs(ctx context.Context) ([]TradingPair, error) {
 	c.pairCacheMutex.RLock()
 	if time.Since(c.pairCacheTime) < c.pairCacheTTL && len(c.pairCache) > 0 {
@@ -224,7 +236,9 @@ func (c *CoinbaseAdapter) GetTradingPairs(ctx context.Context) ([]TradingPair, e
 	return pairs, nil
 }
 
-// GetPairInfo implements the PairProvider interface.
+// GetPairInfo implements the PairProvider interface for retrieving specific pair information.
+// Uses the trading pairs cache when available, refreshing if necessary.
+// Returns detailed information including trading specifications and current market data.
 func (c *CoinbaseAdapter) GetPairInfo(ctx context.Context, pair string) (*PairInfo, error) {
 	// Check cache first
 	c.pairCacheMutex.RLock()
@@ -251,7 +265,9 @@ func (c *CoinbaseAdapter) GetPairInfo(ctx context.Context, pair string) (*PairIn
 	return nil, fmt.Errorf("trading pair %s not found", pair)
 }
 
-// GetLimits implements the RateLimitInfo interface.
+// GetLimits implements the RateLimitInfo interface returning Coinbase rate limiting configuration.
+// The limits are configured conservatively to ensure reliable operation under normal conditions.
+// Actual Coinbase limits may be higher but using conservative values prevents rate limit errors.
 func (c *CoinbaseAdapter) GetLimits() RateLimit {
 	return RateLimit{
 		RequestsPerSecond: maxRequestsPerSecond,
@@ -260,12 +276,16 @@ func (c *CoinbaseAdapter) GetLimits() RateLimit {
 	}
 }
 
-// WaitForLimit implements the RateLimitInfo interface.
+// WaitForLimit implements the RateLimitInfo interface to enforce rate limiting.
+// Uses golang.org/x/time/rate limiter with token bucket algorithm.
+// Blocks until a token is available or the context is cancelled.
 func (c *CoinbaseAdapter) WaitForLimit(ctx context.Context) error {
 	return c.rateLimiter.Wait(ctx)
 }
 
-// HealthCheck implements the HealthChecker interface.
+// HealthCheck implements the HealthChecker interface for monitoring exchange connectivity.
+// Performs a lightweight API call to verify the exchange is reachable and responding.
+// Uses a short timeout to avoid blocking health check routines for too long.
 func (c *CoinbaseAdapter) HealthCheck(ctx context.Context) error {
 	healthCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
 	defer cancel()
@@ -294,11 +314,16 @@ func (c *CoinbaseAdapter) HealthCheck(ctx context.Context) error {
 
 // Private helper methods
 
+// timeChunk represents a time range for fetching candle data in chunks.
+// Used internally to split large time ranges into manageable API requests.
 type timeChunk struct {
-	start time.Time
-	end   time.Time
+	start time.Time // start is the beginning of the time chunk (inclusive)
+	end   time.Time   // end is the end of the time chunk (exclusive)
 }
 
+// calculateChunks splits a large time range into smaller chunks that respect Coinbase API limits.
+// Each chunk will request at most maxCandlesPerRequest candles to avoid API errors.
+// Respects the limit parameter to avoid fetching more data than requested.
 func (c *CoinbaseAdapter) calculateChunks(start, end time.Time, granularitySeconds int, limit int) ([]timeChunk, error) {
 	duration := end.Sub(start)
 	granularityDuration := time.Duration(granularitySeconds) * time.Second
@@ -351,6 +376,9 @@ func (c *CoinbaseAdapter) calculateChunks(start, end time.Time, granularitySecon
 	return chunks, nil
 }
 
+// fetchCandleChunk retrieves OHLCV data for a specific time chunk from Coinbase API.
+// Builds the API request URL with proper parameters and handles the response parsing.
+// Uses makeRequestWithRetry for automatic retry logic and error handling.
 func (c *CoinbaseAdapter) fetchCandleChunk(ctx context.Context, pair string, start, end time.Time, granularity int) ([]coinbaseCandle, error) {
 	requestURL := fmt.Sprintf(c.baseURL+candlesEndpoint, pair)
 
@@ -378,6 +406,10 @@ func (c *CoinbaseAdapter) fetchCandleChunk(ctx context.Context, pair string, sta
 	return apiResponse.Candles, nil
 }
 
+// makeRequestWithRetry executes HTTP requests with exponential backoff retry logic.
+// Handles transient errors, rate limiting, and server errors with appropriate retry strategies.
+// Client errors (4xx) are not retried as they indicate permanent request issues.
+// Rate limiting responses trigger immediate waiting based on Retry-After header.
 func (c *CoinbaseAdapter) makeRequestWithRetry(ctx context.Context, method, url string, body io.Reader) ([]byte, error) {
 	var lastErr error
 
@@ -482,6 +514,9 @@ func (c *CoinbaseAdapter) makeRequestWithRetry(ctx context.Context, method, url 
 	return responseBody, nil
 }
 
+// parseRetryAfter extracts wait duration from HTTP Retry-After header.
+// Supports both seconds (integer) and HTTP date formats as per RFC 7231.
+// Returns zero duration if the header is missing or cannot be parsed.
 func (c *CoinbaseAdapter) parseRetryAfter(header string) time.Duration {
 	if header == "" {
 		return 0
@@ -499,6 +534,9 @@ func (c *CoinbaseAdapter) parseRetryAfter(header string) time.Duration {
 	return 0
 }
 
+// convertInterval converts standard interval formats to Coinbase granularity values.
+// Supports common intervals like "1m", "5m", "1h", "1d" and their verbose forms.
+// Returns granularity in seconds as required by Coinbase API.
 func (c *CoinbaseAdapter) convertInterval(interval string) (int, error) {
 	// Convert standard interval formats to Coinbase granularity (seconds)
 	switch strings.ToLower(interval) {
@@ -519,6 +557,9 @@ func (c *CoinbaseAdapter) convertInterval(interval string) (int, error) {
 	}
 }
 
+// convertCandleToModel converts Coinbase API candle format to internal model.
+// Handles timestamp conversion from Unix epoch to UTC time.
+// Validates the resulting candle using the model's validation logic.
 func (c *CoinbaseAdapter) convertCandleToModel(candle coinbaseCandle, pair, interval string) (*models.Candle, error) {
 	timestamp := time.Unix(candle.Start, 0).UTC()
 
@@ -534,6 +575,9 @@ func (c *CoinbaseAdapter) convertCandleToModel(candle coinbaseCandle, pair, inte
 	)
 }
 
+// convertProductToTradingPair converts Coinbase product information to internal TradingPair format.
+// Extracts base and quote assets from product ID and maps all relevant trading specifications.
+// Handles both the product ID format and dedicated currency ID fields.
 func (c *CoinbaseAdapter) convertProductToTradingPair(product coinbaseProduct) TradingPair {
 	// Parse base and quote assets from product ID (e.g., "BTC-USD" -> "BTC", "USD")
 	parts := strings.Split(product.ProductID, "-")
@@ -555,6 +599,9 @@ func (c *CoinbaseAdapter) convertProductToTradingPair(product coinbaseProduct) T
 	}
 }
 
+// getRateLimitStatus provides current rate limiting status information.
+// Since golang.org/x/time/rate doesn't expose internal state, this provides estimates
+// based on token availability and reservation timing.
 func (c *CoinbaseAdapter) getRateLimitStatus() RateLimitStatus {
 	// Since golang.org/x/time/rate doesn't expose internal state,
 	// we'll provide estimated values
@@ -581,6 +628,9 @@ func (c *CoinbaseAdapter) getRateLimitStatus() RateLimitStatus {
 	}
 }
 
+// encodeNextToken creates a pagination token for continuing data fetches.
+// Encodes the next start time and original request parameters for stateless pagination.
+// In production environments, consider encrypting tokens for security.
 func (c *CoinbaseAdapter) encodeNextToken(nextStart time.Time, req FetchRequest) string {
 	// Simple token encoding - in production, you might want to use encryption
 	token := fmt.Sprintf("%d:%s:%s:%s:%d",
@@ -593,8 +643,11 @@ func (c *CoinbaseAdapter) encodeNextToken(nextStart time.Time, req FetchRequest)
 	return token
 }
 
-// API response structures
+// API response structures for Coinbase Advanced Trade API.
+// These types match the JSON response format from Coinbase endpoints.
 
+// coinbaseCandle represents a single OHLCV candle from Coinbase API.
+// All price and volume fields are returned as strings to preserve precision.
 type coinbaseCandle struct {
 	Start  int64  `json:"start"`
 	Low    string `json:"low"`
@@ -604,6 +657,8 @@ type coinbaseCandle struct {
 	Volume string `json:"volume"`
 }
 
+// coinbaseProduct represents trading pair information from Coinbase products endpoint.
+// Contains comprehensive trading specifications and current market data.
 type coinbaseProduct struct {
 	ProductID                string      `json:"product_id"`
 	Price                    string      `json:"price"`

@@ -1,4 +1,6 @@
-// Package collector interfaces and types for integration with other components
+// Package collector provides interfaces, types, and utilities for OHLCV data collection.
+// This package defines error types, status monitoring, configuration validation,
+// and helper functions used across the collector implementation.
 package collector
 
 import (
@@ -6,9 +8,12 @@ import (
 	"time"
 )
 
-// Error types for better error classification and handling
+// Error types for better error classification and handling.
+// These errors provide structured information for monitoring, retry logic, and debugging.
 
-// CollectionError represents errors during data collection operations
+// CollectionError represents errors that occur during data collection operations.
+// It provides structured information about the error context including the operation,
+// trading pair, and whether the error is retryable.
 type CollectionError struct {
 	Type      string    // "fetch", "validation", "storage", "gap_detection"
 	Operation string    // Specific operation that failed
@@ -18,20 +23,27 @@ type CollectionError struct {
 	Retryable bool      // Whether this error is retryable
 }
 
+// Error implements the error interface for CollectionError.
+// Returns a formatted error message with error type, operation, and context.
 func (e *CollectionError) Error() string {
 	return fmt.Sprintf("collection error [%s:%s] for %s: %v", e.Type, e.Operation, e.Pair, e.Err)
 }
 
+// Unwrap returns the underlying error for error chain support.
+// This enables errors.Is() and errors.As() functionality.
 func (e *CollectionError) Unwrap() error {
 	return e.Err
 }
 
-// IsRetryable returns whether this error can be retried
+// IsRetryable returns whether this error can be retried.
+// Used by retry logic to determine if an operation should be attempted again.
 func (e *CollectionError) IsRetryable() bool {
 	return e.Retryable
 }
 
-// NewCollectionError creates a new collection error
+// NewCollectionError creates a new CollectionError with the provided details.
+// The retryable parameter indicates whether the operation can be retried.
+// Automatically sets the timestamp to the current time.
 func NewCollectionError(errorType, operation, pair string, err error, retryable bool) *CollectionError {
 	return &CollectionError{
 		Type:      errorType,
@@ -43,21 +55,26 @@ func NewCollectionError(errorType, operation, pair string, err error, retryable 
 	}
 }
 
-// RateLimitError represents rate limiting errors
+// RateLimitError represents errors caused by rate limiting from external APIs.
+// Contains information about how long to wait before retrying.
 type RateLimitError struct {
 	RetryAfter time.Duration
 	Err        error
 }
 
+// Error implements the error interface for RateLimitError.
+// Returns a formatted message including the retry delay.
 func (e *RateLimitError) Error() string {
 	return fmt.Sprintf("rate limited, retry after %v: %v", e.RetryAfter, e.Err)
 }
 
+// Unwrap returns the underlying error for error chain support.
 func (e *RateLimitError) Unwrap() error {
 	return e.Err
 }
 
-// ValidationError represents data validation errors
+// ValidationError represents errors that occur during data validation.
+// Contains information about the invalid data and severity level.
 type ValidationError struct {
 	Pair     string
 	Candle   interface{} // The candle that failed validation
@@ -65,28 +82,36 @@ type ValidationError struct {
 	Severity string      // "warning", "error", "critical"
 }
 
+// Error implements the error interface for ValidationError.
+// Returns a formatted message with pair, issue description, and severity.
 func (e *ValidationError) Error() string {
 	return fmt.Sprintf("validation error for %s: %s (severity: %s)", e.Pair, e.Issue, e.Severity)
 }
 
-// StorageError represents storage operation errors
+// StorageError represents errors that occur during storage operations.
+// Contains information about the operation and table involved.
 type StorageError struct {
 	Operation string // "store", "query", "delete"
 	Table     string // Database table involved
 	Err       error
 }
 
+// Error implements the error interface for StorageError.
+// Returns a formatted message with operation, table, and underlying error.
 func (e *StorageError) Error() string {
 	return fmt.Sprintf("storage error during %s on %s: %v", e.Operation, e.Table, e.Err)
 }
 
+// Unwrap returns the underlying error for error chain support.
 func (e *StorageError) Unwrap() error {
 	return e.Err
 }
 
-// Status and health check types
+// Status and health check types for monitoring collector operations.
+// These types provide structured information about system health and state.
 
-// CollectorStatus represents the overall status of the collector
+// CollectorStatus represents the overall operational status of the collector.
+// Used for monitoring and determining if the collector is functioning properly.
 type CollectorStatus string
 
 const (
@@ -98,7 +123,8 @@ const (
 	StatusDegraded   CollectorStatus = "degraded"
 )
 
-// HealthStatus represents health check results
+// HealthStatus represents comprehensive health check results for the collector.
+// Includes overall status, component health, error information, and resource usage.
 type HealthStatus struct {
 	Status       CollectorStatus       `json:"status"`
 	Healthy      bool                  `json:"healthy"`
@@ -109,7 +135,8 @@ type HealthStatus struct {
 	MemoryUsageMB int64                `json:"memory_usage_mb"`
 }
 
-// ComponentHealth represents individual component health
+// ComponentHealth represents the health status of an individual system component.
+// Used to track the health of exchanges, storage, validators, etc.
 type ComponentHealth struct {
 	Name        string        `json:"name"`
 	Healthy     bool          `json:"healthy"`
@@ -118,9 +145,12 @@ type ComponentHealth struct {
 	ResponseTime time.Duration `json:"response_time"`
 }
 
-// Configuration validation
+// Configuration validation functions ensure collector configuration is valid.
+// These functions prevent runtime errors by validating configuration at startup.
 
-// ValidateConfig validates collector configuration
+// ValidateConfig validates collector configuration parameters.
+// Checks that all numeric values are within acceptable ranges and required fields are set.
+// Returns an error if any configuration parameter is invalid.
 func ValidateConfig(config *Config) error {
 	if config.WorkerCount <= 0 {
 		return fmt.Errorf("worker count must be positive, got %d", config.WorkerCount)
@@ -165,9 +195,12 @@ func ValidateConfig(config *Config) error {
 	return nil
 }
 
-// Helper functions for error classification
+// Helper functions for error classification and categorization.
+// These functions help determine appropriate error handling strategies.
 
-// IsRetryableError determines if an error can be retried
+// IsRetryableError determines if an error can be retried based on its type and content.
+// Returns true for transient errors like network timeouts or rate limits.
+// Returns false for permanent errors like validation failures or authentication errors.
 func IsRetryableError(err error) bool {
 	if err == nil {
 		return false
@@ -208,7 +241,9 @@ func IsRetryableError(err error) bool {
 	return false
 }
 
-// IsCriticalError determines if an error is critical and should stop processing
+// IsCriticalError determines if an error is critical and should stop processing.
+// Critical errors indicate serious system problems that require immediate attention.
+// Returns true for errors like authentication failures, database corruption, or resource exhaustion.
 func IsCriticalError(err error) bool {
 	if err == nil {
 		return false
@@ -252,7 +287,9 @@ func IsCriticalError(err error) bool {
 	return false
 }
 
-// GetErrorCategory categorizes errors for metrics and monitoring
+// GetErrorCategory categorizes errors for metrics and monitoring purposes.
+// Returns a string category that can be used for error grouping and alerting.
+// Helps identify patterns in error types for system monitoring and debugging.
 func GetErrorCategory(err error) string {
 	if err == nil {
 		return "none"
@@ -291,7 +328,8 @@ func GetErrorCategory(err error) string {
 	return "unknown"
 }
 
-// Helper function for string contains check (case-insensitive)
+// contains performs a case-insensitive substring check.
+// Used internally for error message pattern matching.
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && 
 		   (s == substr || 
@@ -299,6 +337,8 @@ func contains(s, substr string) bool {
 		    (hasSubstring(s, substr)))
 }
 
+// hasSubstring performs case-insensitive substring matching.
+// Converts both strings to lowercase before checking for containment.
 func hasSubstring(s, substr string) bool {
 	// Simple case-insensitive substring check
 	sLower := make([]byte, len(s))
@@ -323,6 +363,8 @@ func hasSubstring(s, substr string) bool {
 	return bytesContains(sLower, substrLower)
 }
 
+// bytesContains checks if a byte slice contains a subsequence.
+// Used for efficient substring matching in lowercased byte slices.
 func bytesContains(b, subslice []byte) bool {
 	if len(subslice) == 0 {
 		return true
@@ -339,6 +381,8 @@ func bytesContains(b, subslice []byte) bool {
 	return false
 }
 
+// bytesEqual compares two byte slices for equality.
+// Used for efficient byte-level comparison in substring matching.
 func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false

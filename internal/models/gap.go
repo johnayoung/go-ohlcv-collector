@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-// GapStatus represents the possible states of a data gap
+// GapStatus represents the possible states of a data gap in the system.
+// It tracks the lifecycle of gap detection, filling, and resolution.
 type GapStatus string
 
 const (
@@ -20,17 +21,19 @@ const (
 	GapStatusPermanent GapStatus = "permanent"
 )
 
-// GapPriority represents the urgency level for filling a gap
+// GapPriority represents the urgency level for filling a gap.
+// Higher priority gaps should be processed before lower priority ones.
 type GapPriority int
 
 const (
-	PriorityLow GapPriority = iota
-	PriorityMedium
-	PriorityHigh
-	PriorityCritical
+	PriorityLow      GapPriority = iota // PriorityLow indicates gaps that can be filled when resources are available
+	PriorityMedium                      // PriorityMedium indicates normal priority gaps
+	PriorityHigh                        // PriorityHigh indicates gaps that should be filled promptly
+	PriorityCritical                    // PriorityCritical indicates gaps that must be filled immediately
 )
 
-// Gap represents missing periods in historical OHLCV data
+// Gap represents missing periods in historical OHLCV data that need to be backfilled.
+// It contains metadata about the gap including timing, priority, and fill attempts.
 type Gap struct {
 	// ID is the unique gap identifier
 	ID string `json:"id" db:"id" validate:"required"`
@@ -69,7 +72,12 @@ type Gap struct {
 	ErrorMessage string `json:"error_message,omitempty" db:"error_message"`
 }
 
-// NewGap creates a new gap with the detected status
+// NewGap creates a new Gap instance with the provided parameters and sets the status to detected.
+// It validates the gap data, calculates priority, and sets the creation timestamp.
+// Returns an error if the gap parameters are invalid.
+//
+// Example:
+//     gap, err := NewGap("gap-123", "BTC-USD", start, end, "1h")
 func NewGap(id, pair string, startTime, endTime time.Time, interval string) (*Gap, error) {
 	gap := &Gap{
 		ID:        id,
@@ -90,7 +98,10 @@ func NewGap(id, pair string, startTime, endTime time.Time, interval string) (*Ga
 	return gap, nil
 }
 
-// Validate checks if the gap has valid field values
+// Validate performs comprehensive validation on the gap data.
+// It checks that all required fields are present, times are valid,
+// status transitions are correct, and timestamps are consistent.
+// Returns an error if any validation fails.
 func (g *Gap) Validate() error {
 	if g.ID == "" {
 		return errors.New("gap ID cannot be empty")
@@ -137,7 +148,9 @@ func (g *Gap) Validate() error {
 	return nil
 }
 
-// StartFilling transitions the gap from detected to filling status
+// StartFilling transitions the gap from detected to filling status.
+// It updates the attempt counter, sets the last attempt time, and clears any previous error.
+// Returns an error if the gap is not in detected status.
 func (g *Gap) StartFilling() error {
 	if g.Status != GapStatusDetected {
 		return fmt.Errorf("cannot start filling gap with status %s, must be %s", g.Status, GapStatusDetected)
@@ -152,7 +165,9 @@ func (g *Gap) StartFilling() error {
 	return nil
 }
 
-// MarkFilled transitions the gap from filling to filled status
+// MarkFilled transitions the gap from filling to filled status.
+// It sets the filled timestamp and clears any error message.
+// Returns an error if the gap is not currently being filled.
 func (g *Gap) MarkFilled() error {
 	if g.Status != GapStatusFilling {
 		return fmt.Errorf("cannot mark gap as filled with status %s, must be %s", g.Status, GapStatusFilling)
@@ -166,7 +181,10 @@ func (g *Gap) MarkFilled() error {
 	return nil
 }
 
-// MarkPermanent transitions the gap from detected to permanent status
+// MarkPermanent transitions the gap from detected to permanent status.
+// This should be used when a gap cannot be filled due to data unavailability.
+// The reason parameter should explain why the gap is unfillable.
+// Returns an error if the gap is not in detected status.
 func (g *Gap) MarkPermanent(reason string) error {
 	if g.Status != GapStatusDetected {
 		return fmt.Errorf("cannot mark gap as permanent with status %s, must be %s", g.Status, GapStatusDetected)
@@ -178,7 +196,10 @@ func (g *Gap) MarkPermanent(reason string) error {
 	return nil
 }
 
-// RecordFailure records a failed attempt to fill the gap and transitions back to detected
+// RecordFailure records a failed attempt to fill the gap and transitions back to detected status.
+// It preserves the attempt count and timestamp for retry logic.
+// The errorMessage parameter should contain details about why the fill attempt failed.
+// Returns an error if the gap is not currently being filled.
 func (g *Gap) RecordFailure(errorMessage string) error {
 	if g.Status != GapStatusFilling {
 		return fmt.Errorf("cannot record failure for gap with status %s, must be %s", g.Status, GapStatusFilling)
@@ -191,42 +212,51 @@ func (g *Gap) RecordFailure(errorMessage string) error {
 	return nil
 }
 
-// Duration calculates the time span of the gap
+// Duration calculates the time span of the gap from start to end time.
+// This helps determine the amount of data that needs to be backfilled.
 func (g *Gap) Duration() time.Duration {
 	return g.EndTime.Sub(g.StartTime)
 }
 
-// IsActive returns true if the gap is not filled or permanent
+// IsActive returns true if the gap is in detected or filling status.
+// Active gaps are candidates for backfill processing.
 func (g *Gap) IsActive() bool {
 	return g.Status == GapStatusDetected || g.Status == GapStatusFilling
 }
 
-// CanFill returns true if the gap can be transitioned to filling status
+// CanFill returns true if the gap is in detected status and can be transitioned to filling.
+// This is used by the gap processing system to identify fillable gaps.
 func (g *Gap) CanFill() bool {
 	return g.Status == GapStatusDetected
 }
 
-// IsFilled returns true if the gap has been successfully filled
+// IsFilled returns true if the gap has been successfully filled with data.
+// Filled gaps do not require further processing.
 func (g *Gap) IsFilled() bool {
 	return g.Status == GapStatusFilled
 }
 
-// IsPermanent returns true if the gap is marked as permanently unfillable
+// IsPermanent returns true if the gap is marked as permanently unfillable.
+// Permanent gaps are excluded from backfill processing.
 func (g *Gap) IsPermanent() bool {
 	return g.Status == GapStatusPermanent
 }
 
-// IsInProgress returns true if the gap is currently being filled
+// IsInProgress returns true if the gap is currently being filled.
+// Only one worker should fill a gap at a time.
 func (g *Gap) IsInProgress() bool {
 	return g.Status == GapStatusFilling
 }
 
-// Age returns how long ago the gap was created
+// Age returns the duration since the gap was first detected.
+// This is used in priority calculations and monitoring.
 func (g *Gap) Age() time.Duration {
 	return time.Since(g.CreatedAt)
 }
 
-// TimeSinceLastAttempt returns how long since the last fill attempt
+// TimeSinceLastAttempt returns the duration since the last fill attempt was made.
+// Returns 0 if no attempts have been made yet.
+// This is used to implement retry delays.
 func (g *Gap) TimeSinceLastAttempt() time.Duration {
 	if g.LastAttemptAt == nil {
 		return time.Duration(0)
@@ -234,7 +264,10 @@ func (g *Gap) TimeSinceLastAttempt() time.Duration {
 	return time.Since(*g.LastAttemptAt)
 }
 
-// ShouldRetry determines if a failed gap should be retried based on attempts and time
+// ShouldRetry determines if a failed gap should be retried based on attempt count and time.
+// It checks that the gap is in detected status, hasn't exceeded max attempts,
+// and sufficient time has passed since the last attempt.
+// Returns true if the gap should be retried.
 func (g *Gap) ShouldRetry(maxAttempts int, retryDelay time.Duration) bool {
 	if g.Status != GapStatusDetected {
 		return false
@@ -251,7 +284,9 @@ func (g *Gap) ShouldRetry(maxAttempts int, retryDelay time.Duration) bool {
 	return g.TimeSinceLastAttempt() >= retryDelay
 }
 
-// calculatePriority determines the priority for filling this gap based on various factors
+// calculatePriority determines the priority for filling this gap based on duration and age.
+// Longer gaps and older gaps receive higher priority.
+// Very recent short gaps receive lower priority.
 func (g *Gap) calculatePriority() {
 	duration := g.Duration()
 	age := g.Age()
@@ -285,12 +320,14 @@ func (g *Gap) calculatePriority() {
 	g.Priority = priority
 }
 
-// UpdatePriority recalculates and updates the gap priority
+// UpdatePriority recalculates and updates the gap priority based on current time.
+// This should be called periodically to ensure priorities reflect current conditions.
 func (g *Gap) UpdatePriority() {
 	g.calculatePriority()
 }
 
-// GetPriorityString returns a human-readable priority string
+// GetPriorityString returns a human-readable string representation of the gap priority.
+// This is useful for logging and monitoring purposes.
 func (g *Gap) GetPriorityString() string {
 	switch g.Priority {
 	case PriorityLow:
@@ -306,7 +343,10 @@ func (g *Gap) GetPriorityString() string {
 	}
 }
 
-// ExpectedCandles estimates how many candles should fill this gap
+// ExpectedCandles estimates the number of candles needed to fill this gap.
+// It calculates based on the gap duration and interval.
+// Returns an error for unsupported interval formats.
+// This helps estimate the amount of work required to fill the gap.
 func (g *Gap) ExpectedCandles() (int, error) {
 	duration := g.Duration()
 	
@@ -339,7 +379,9 @@ func (g *Gap) ExpectedCandles() (int, error) {
 	return expectedCandles, nil
 }
 
-// String returns a human-readable representation of the gap
+// String returns a human-readable representation of the gap.
+// It includes key identifying information and current status.
+// This method implements the fmt.Stringer interface.
 func (g *Gap) String() string {
 	return fmt.Sprintf("Gap{ID: %s, Pair: %s, Duration: %v, Status: %s, Priority: %s}",
 		g.ID, g.Pair, g.Duration(), g.Status, g.GetPriorityString())

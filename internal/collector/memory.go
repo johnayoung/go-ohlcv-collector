@@ -1,3 +1,4 @@
+// Package collector provides memory management and monitoring for OHLCV data collection.
 package collector
 
 import (
