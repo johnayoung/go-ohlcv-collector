@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/johnayoung/go-ohlcv-collector/internal/collector"
-	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // MockExchangeAdapter provides a test implementation of ExchangeAdapter

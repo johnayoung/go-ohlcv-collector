@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // ScheduledJob defines a single scheduled collection task

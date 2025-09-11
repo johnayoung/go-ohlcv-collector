@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // TestCandleStorerContract tests the CandleStorer interface contract

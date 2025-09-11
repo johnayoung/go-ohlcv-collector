@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // StubStorage provides an in-memory storage implementation for testing

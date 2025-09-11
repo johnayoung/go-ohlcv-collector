@@ -9,7 +9,7 @@ import (
 	"github.com/johnayoung/go-ohlcv-collector/internal/gaps"
 	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/validator"
-	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // NewWithDefaults creates a new Collector with default configuration

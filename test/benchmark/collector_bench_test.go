@@ -15,6 +15,7 @@ import (
 
 	"github.com/johnayoung/go-ohlcv-collector/internal/collector"
 	"github.com/johnayoung/go-ohlcv-collector/internal/config"
+	"github.com/johnayoung/go-ohlcv-collector/internal/exchange"
 	"github.com/johnayoung/go-ohlcv-collector/internal/logger"
 	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/storage"
@@ -642,8 +643,8 @@ func (m *MockExchangeAdapter) FetchHistoricalData(ctx context.Context, pair, int
 	return result, nil
 }
 
-func (m *MockExchangeAdapter) GetTradingPairs(ctx context.Context) ([]models.TradingPair, error) {
-	return []models.TradingPair{
+func (m *MockExchangeAdapter) GetTradingPairs(ctx context.Context) ([]exchange.TradingPair, error) {
+	return []exchange.TradingPair{
 		{Symbol: "BTC-USD", BaseAsset: "BTC", QuoteAsset: "USD", Active: true},
 		{Symbol: "ETH-USD", BaseAsset: "ETH", QuoteAsset: "USD", Active: true},
 		{Symbol: "LTC-USD", BaseAsset: "LTC", QuoteAsset: "USD", Active: true},

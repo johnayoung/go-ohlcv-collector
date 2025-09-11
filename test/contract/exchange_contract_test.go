@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // TestExchangeAdapter_ContractCompliance tests that any implementation
@@ -206,7 +206,8 @@ func TestCandleFetcher_FetchCandles(t *testing.T) {
 				Limit:    100,
 			},
 			setupCtx: func() context.Context {
-				ctx, _ := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+				defer cancel()
 				time.Sleep(2 * time.Nanosecond) // Ensure timeout
 				return ctx
 			},
@@ -314,7 +315,8 @@ func TestPairProvider_GetTradingPairs(t *testing.T) {
 		{
 			name: "context_timeout",
 			setupCtx: func() context.Context {
-				ctx, _ := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+				defer cancel()
 				time.Sleep(2 * time.Nanosecond)
 				return ctx
 			},
@@ -482,7 +484,8 @@ func TestRateLimitInfo_WaitForLimit(t *testing.T) {
 		{
 			name: "context_timeout",
 			setupCtx: func() context.Context {
-				ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+				ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+				defer cancel()
 				return ctx
 			},
 			expectError: true,
@@ -551,7 +554,8 @@ func TestHealthChecker_HealthCheck(t *testing.T) {
 		{
 			name: "context_timeout",
 			setupCtx: func() context.Context {
-				ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+				ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+				defer cancel()
 				return ctx
 			},
 			expectError: true,

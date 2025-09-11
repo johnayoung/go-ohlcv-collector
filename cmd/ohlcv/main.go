@@ -32,7 +32,7 @@ import (
 	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/storage"
 	"github.com/johnayoung/go-ohlcv-collector/internal/validator"
-	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // CLI version information
@@ -224,7 +224,7 @@ func (cli *CLI) initialize(ctx context.Context) error {
 	schedulerConfig := collector.DefaultSchedulerConfig()
 	schedulerConfig.MaxConcurrentJobs = config.WorkerCount
 
-	cli.scheduler = collector.NewScheduler(cli.collector, schedulerConfig)
+	cli.scheduler = collector.NewScheduler(schedulerConfig, cli.exchange, cli.storage, cli.collector)
 
 	return nil
 }
@@ -557,6 +557,7 @@ type CollectFlags struct {
 	Start    string
 	End      string
 	Days     int
+	Limit    int
 	Help     bool
 }
 
@@ -882,16 +883,17 @@ func setupLogging(logLevel, logFormat string) (*slog.Logger, error) {
 func createStorage(config *Config) (contracts.FullStorage, error) {
 	switch config.StorageType {
 	case "duckdb":
-		return storage.NewDuckDB(storage.DuckDBConfig{
-			DatabasePath: config.DatabaseURL,
-			BatchSize:    config.BatchSize,
-		})
+		impl, err := storage.NewDuckDBStorage(config.DatabaseURL, slog.Default())
+		if err != nil {
+			return nil, err
+		}
+		return storage.NewStorageContractAdapter(impl), nil
 	case "postgresql":
-		return storage.NewPostgreSQL(storage.PostgreSQLConfig{
-			ConnectionString: config.DatabaseURL,
-		})
+		// PostgreSQL adapter not implemented yet
+		return nil, fmt.Errorf("postgresql storage not implemented")
 	case "memory":
-		return storage.NewMemory(), nil
+		impl := storage.NewMemoryStorage()
+		return storage.NewStorageContractAdapter(impl), nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", config.StorageType)
 	}
@@ -901,13 +903,11 @@ func createStorage(config *Config) (contracts.FullStorage, error) {
 func createExchange(config *Config) (contracts.ExchangeAdapter, error) {
 	switch config.ExchangeType {
 	case "coinbase":
-		return exchange.NewCoinbase(exchange.CoinbaseConfig{
-			RateLimit: config.RateLimit,
-			APIKey:    config.APIKey,
-			APISecret: config.APISecret,
-		}), nil
+		impl := exchange.NewCoinbaseAdapter()
+		return exchange.NewExchangeContractAdapter(impl), nil
 	case "mock":
-		return exchange.NewMock(), nil
+		// Mock exchange not implemented yet
+		return nil, fmt.Errorf("mock exchange not implemented")
 	default:
 		return nil, fmt.Errorf("unsupported exchange type: %s", config.ExchangeType)
 	}
