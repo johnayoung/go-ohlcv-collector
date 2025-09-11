@@ -24,6 +24,7 @@ type CandleReader interface {
 type GapStorage interface {
     StoreGap(ctx context.Context, gap Gap) error
     GetGaps(ctx context.Context, pair string, interval string) ([]Gap, error)
+    GetGapByID(ctx context.Context, gapID string) (*Gap, error)
     MarkGapFilled(ctx context.Context, gapID string, filledAt time.Time) error
     DeleteGap(ctx context.Context, gapID string) error
 }
