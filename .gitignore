@@ -38,7 +38,8 @@ Thumbs.db
 # Build directories and artifacts
 build/
 dist/
-bin/
+bin/*
+!bin/README.md
 *.o
 *.a
 
