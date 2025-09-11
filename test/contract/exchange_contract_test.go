@@ -15,27 +15,27 @@ import (
 func TestExchangeAdapter_ContractCompliance(t *testing.T) {
 	// This test will fail initially as we don't have implementations yet
 	// This is intentional for TDD approach
-	
+
 	// TODO: Replace nil with actual exchange adapter implementations
 	var adapter contracts.ExchangeAdapter = nil
-	
+
 	if adapter == nil {
 		t.Fatal("ExchangeAdapter implementation required")
 	}
-	
+
 	// Test all embedded interfaces are satisfied
 	if _, ok := adapter.(contracts.CandleFetcher); !ok {
 		t.Error("ExchangeAdapter must implement CandleFetcher")
 	}
-	
+
 	if _, ok := adapter.(contracts.PairProvider); !ok {
 		t.Error("ExchangeAdapter must implement PairProvider")
 	}
-	
+
 	if _, ok := adapter.(contracts.RateLimitInfo); !ok {
 		t.Error("ExchangeAdapter must implement RateLimitInfo")
 	}
-	
+
 	if _, ok := adapter.(contracts.HealthChecker); !ok {
 		t.Error("ExchangeAdapter must implement HealthChecker")
 	}
@@ -79,7 +79,7 @@ func TestCandleFetcher_FetchCandles(t *testing.T) {
 				if len(resp.Candles) == 0 {
 					t.Error("Response should contain candles")
 				}
-				
+
 				// Validate candle structure
 				for _, candle := range resp.Candles {
 					if candle.Open == "" {
@@ -107,7 +107,7 @@ func TestCandleFetcher_FetchCandles(t *testing.T) {
 						t.Error("Timestamp should not be zero")
 					}
 				}
-				
+
 				// Validate rate limit info
 				if resp.RateLimit.Remaining < 0 {
 					t.Errorf("Rate limit remaining should be >= 0, got %d", resp.RateLimit.Remaining)
@@ -279,7 +279,7 @@ func TestPairProvider_GetTradingPairs(t *testing.T) {
 				if len(pairs) == 0 {
 					t.Error("Should return at least one trading pair")
 				}
-				
+
 				for _, pair := range pairs {
 					if pair.Symbol == "" {
 						t.Error("Symbol required")
@@ -432,7 +432,7 @@ func TestRateLimitInfo_GetLimits(t *testing.T) {
 	}
 
 	limits := rateLimiter.GetLimits()
-	
+
 	if limits.RequestsPerSecond <= 0 {
 		t.Error("RequestsPerSecond must be positive")
 	}
@@ -442,7 +442,7 @@ func TestRateLimitInfo_GetLimits(t *testing.T) {
 	if limits.WindowDuration <= 0 {
 		t.Error("WindowDuration must be positive")
 	}
-	
+
 	// Burst size should typically be >= requests per second
 	if limits.BurstSize < limits.RequestsPerSecond {
 		t.Error("BurstSize should be at least equal to RequestsPerSecond")
@@ -494,14 +494,14 @@ func TestRateLimitInfo_WaitForLimit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := tt.setupCtx()
 			start := time.Now()
-			
+
 			err := rateLimiter.WaitForLimit(ctx)
 			duration := time.Since(start)
-			
+
 			if duration >= tt.maxDuration {
 				t.Errorf("Wait duration %v should be less than maximum %v", duration, tt.maxDuration)
 			}
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
@@ -563,14 +563,14 @@ func TestHealthChecker_HealthCheck(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := tt.setupCtx()
 			start := time.Now()
-			
+
 			err := checker.HealthCheck(ctx)
 			duration := time.Since(start)
-			
+
 			if duration >= tt.maxDuration {
 				t.Errorf("Health check duration %v should be less than maximum %v", duration, tt.maxDuration)
 			}
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
@@ -702,7 +702,7 @@ func BenchmarkPairProvider_GetTradingPairs(b *testing.B) {
 // Test helper functions for validation
 func validateCandleData(t *testing.T, candle contracts.Candle) {
 	t.Helper()
-	
+
 	if candle.Open == "" {
 		t.Error("Open price required")
 	}
@@ -731,7 +731,7 @@ func validateCandleData(t *testing.T, candle contracts.Candle) {
 
 func validateTradingPair(t *testing.T, pair contracts.TradingPair) {
 	t.Helper()
-	
+
 	if pair.Symbol == "" {
 		t.Error("Symbol required")
 	}
@@ -754,7 +754,7 @@ func validateTradingPair(t *testing.T, pair contracts.TradingPair) {
 
 func validateRateLimit(t *testing.T, rateLimit contracts.RateLimit) {
 	t.Helper()
-	
+
 	if rateLimit.RequestsPerSecond <= 0 {
 		t.Error("RequestsPerSecond must be positive")
 	}

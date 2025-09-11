@@ -4,10 +4,11 @@
 // cryptocurrency exchanges.
 //
 // Usage:
-//   ohlcv collect --pair BTC-USD --interval 1d --days 30
-//   ohlcv schedule --pairs BTC-USD,ETH-USD --interval 1d --frequency 1h  
-//   ohlcv gaps --pair BTC-USD --interval 1d
-//   ohlcv query --pair BTC-USD --start 2024-01-01 --end 2024-01-31
+//
+//	ohlcv collect --pair BTC-USD --interval 1d --days 30
+//	ohlcv schedule --pairs BTC-USD,ETH-USD --interval 1d --frequency 1h
+//	ohlcv gaps --pair BTC-USD --interval 1d
+//	ohlcv query --pair BTC-USD --start 2024-01-01 --end 2024-01-31
 //
 // For detailed help on any command, use: ohlcv <command> --help
 package main
@@ -56,19 +57,19 @@ type Config struct {
 	// Storage configuration
 	StorageType string `json:"storage_type,omitempty"` // "duckdb", "postgresql", "memory"
 	DatabaseURL string `json:"database_url,omitempty"`
-	
+
 	// Exchange configuration
 	ExchangeType string `json:"exchange_type,omitempty"` // "coinbase", "mock"
 	APIKey       string `json:"api_key,omitempty"`
 	APISecret    string `json:"api_secret,omitempty"`
-	
+
 	// Collection configuration
-	BatchSize      int    `json:"batch_size,omitempty"`
-	WorkerCount    int    `json:"worker_count,omitempty"`
-	RateLimit      int    `json:"rate_limit,omitempty"`
-	RetryAttempts  int    `json:"retry_attempts,omitempty"`
-	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
-	
+	BatchSize      int `json:"batch_size,omitempty"`
+	WorkerCount    int `json:"worker_count,omitempty"`
+	RateLimit      int `json:"rate_limit,omitempty"`
+	RetryAttempts  int `json:"retry_attempts,omitempty"`
+	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
+
 	// Logging configuration
 	LogLevel  string `json:"log_level,omitempty"`  // "debug", "info", "warn", "error"
 	LogFormat string `json:"log_format,omitempty"` // "text", "json"
@@ -114,7 +115,7 @@ func main() {
 	defer cancel()
 
 	cli := &CLI{}
-	
+
 	// Initialize CLI
 	if err := cli.initialize(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Failed to initialize CLI: %v\n", err)
@@ -222,7 +223,7 @@ func (cli *CLI) initialize(ctx context.Context) error {
 	// Initialize scheduler
 	schedulerConfig := collector.DefaultSchedulerConfig()
 	schedulerConfig.MaxConcurrentJobs = config.WorkerCount
-	
+
 	cli.scheduler = collector.NewScheduler(cli.collector, schedulerConfig)
 
 	return nil
@@ -251,14 +252,14 @@ func (cli *CLI) handleCollect(ctx context.Context, args []string) error {
 
 	// Calculate time range
 	var startTime, endTime time.Time
-	
+
 	if flags.Start != "" {
 		startTime, err = time.Parse("2006-01-02", flags.Start)
 		if err != nil {
 			return fmt.Errorf("invalid start date format, use YYYY-MM-DD: %w", err)
 		}
 	}
-	
+
 	if flags.End != "" {
 		endTime, err = time.Parse("2006-01-02", flags.End)
 		if err != nil {
@@ -299,7 +300,7 @@ func (cli *CLI) handleCollect(ctx context.Context, args []string) error {
 	}
 
 	cli.logger.Info("Historical data collection completed successfully")
-	
+
 	// Print summary
 	fmt.Printf("✅ Successfully collected %s %s data from %s to %s\n",
 		flags.Pair, flags.Interval,
@@ -404,7 +405,7 @@ func (cli *CLI) handleGaps(ctx context.Context, args []string) error {
 	}
 
 	fmt.Printf("🔍 Found %d data gaps for %s %s:\n\n", len(gaps), flags.Pair, flags.Interval)
-	
+
 	for i, gap := range gaps {
 		duration := gap.EndTime.Sub(gap.StartTime)
 		fmt.Printf("%d. Gap from %s to %s (Duration: %v, Status: %s)\n",
@@ -418,7 +419,7 @@ func (cli *CLI) handleGaps(ctx context.Context, args []string) error {
 	// Offer to backfill gaps
 	if flags.Backfill {
 		fmt.Println("\n📡 Starting gap backfill...")
-		
+
 		for _, gap := range gaps {
 			if gap.Status == "filled" {
 				continue
@@ -475,14 +476,14 @@ func (cli *CLI) handleQuery(ctx context.Context, args []string) error {
 
 	// Parse time range
 	var startTime, endTime time.Time
-	
+
 	if flags.Start != "" {
 		startTime, err = time.Parse("2006-01-02", flags.Start)
 		if err != nil {
 			return fmt.Errorf("invalid start date format, use YYYY-MM-DD: %w", err)
 		}
 	}
-	
+
 	if flags.End != "" {
 		endTime, err = time.Parse("2006-01-02", flags.End)
 		if err != nil {
@@ -723,7 +724,7 @@ func parseGapsFlags(args []string) (*GapsFlags, error) {
 	return flags, nil
 }
 
-// parseQueryFlags parses command line arguments for the query command  
+// parseQueryFlags parses command line arguments for the query command
 func parseQueryFlags(args []string) (*QueryFlags, error) {
 	flags := &QueryFlags{
 		Interval: "1d",    // Default interval
@@ -988,10 +989,10 @@ func (m *mockValidator) ProcessCandles(ctx context.Context, candles []contracts.
 		ValidCandles:     int64(len(candles)),
 		InvalidCandles:   0,
 		QualityMetrics: &validator.DataQualityMetrics{
-			TotalCandles:     int64(len(candles)),
-			ValidCandles:     int64(len(candles)),
-			QualityScore:     1.0,
-			SuccessRate:      1.0,
+			TotalCandles: int64(len(candles)),
+			ValidCandles: int64(len(candles)),
+			QualityScore: 1.0,
+			SuccessRate:  1.0,
 		},
 		PipelineStatus: validator.PipelineStatusSuccess,
 	}, nil
@@ -1051,11 +1052,11 @@ type collectionJob struct {
 
 func (j *collectionJob) Execute(ctx context.Context) error {
 	j.logger.Info("Executing scheduled collection job", "job_id", j.id, "pair", j.pair)
-	
+
 	// Collect data for the last interval period
 	endTime := time.Now().UTC()
 	var startTime time.Time
-	
+
 	switch j.interval {
 	case "1m":
 		startTime = endTime.Add(-time.Minute)

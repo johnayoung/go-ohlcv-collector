@@ -188,45 +188,45 @@ func testGetGaps(t *testing.T, storage contracts.GapStorage) {
 	}
 
 	tests := []struct {
-		name         string
-		pair         string
-		interval     string
-		expectedIDs  []string
+		name          string
+		pair          string
+		interval      string
+		expectedIDs   []string
 		expectedCount int
 	}{
 		{
-			name:         "get_btc_1h_gaps",
-			pair:         "BTC/USDT",
-			interval:     "1h",
-			expectedIDs:  []string{"gap-btc-001", "gap-btc-002"},
+			name:          "get_btc_1h_gaps",
+			pair:          "BTC/USDT",
+			interval:      "1h",
+			expectedIDs:   []string{"gap-btc-001", "gap-btc-002"},
 			expectedCount: 2,
 		},
 		{
-			name:         "get_eth_1h_gaps",
-			pair:         "ETH/USDT",
-			interval:     "1h",
-			expectedIDs:  []string{"gap-eth-001"},
+			name:          "get_eth_1h_gaps",
+			pair:          "ETH/USDT",
+			interval:      "1h",
+			expectedIDs:   []string{"gap-eth-001"},
 			expectedCount: 1,
 		},
 		{
-			name:         "get_btc_5m_gaps",
-			pair:         "BTC/USDT",
-			interval:     "5m",
-			expectedIDs:  []string{"gap-btc-5m-001"},
+			name:          "get_btc_5m_gaps",
+			pair:          "BTC/USDT",
+			interval:      "5m",
+			expectedIDs:   []string{"gap-btc-5m-001"},
 			expectedCount: 1,
 		},
 		{
-			name:         "get_nonexistent_pair",
-			pair:         "LTC/USDT",
-			interval:     "1h",
-			expectedIDs:  []string{},
+			name:          "get_nonexistent_pair",
+			pair:          "LTC/USDT",
+			interval:      "1h",
+			expectedIDs:   []string{},
 			expectedCount: 0,
 		},
 		{
-			name:         "get_nonexistent_interval",
-			pair:         "BTC/USDT",
-			interval:     "1d",
-			expectedIDs:  []string{},
+			name:          "get_nonexistent_interval",
+			pair:          "BTC/USDT",
+			interval:      "1d",
+			expectedIDs:   []string{},
 			expectedCount: 0,
 		},
 	}
@@ -321,7 +321,7 @@ func testMarkGapFilled(t *testing.T, storage contracts.GapStorage) {
 				// Verify gap status was updated
 				gaps, err := storage.GetGaps(ctx, testGap.Pair, testGap.Interval)
 				require.NoError(t, err)
-				
+
 				var updatedGap *contracts.Gap
 				for _, gap := range gaps {
 					if gap.ID == tt.gapID {
@@ -329,7 +329,7 @@ func testMarkGapFilled(t *testing.T, storage contracts.GapStorage) {
 						break
 					}
 				}
-				
+
 				require.NotNil(t, updatedGap, "Gap should still exist after marking filled")
 				assert.Equal(t, "filled", updatedGap.Status)
 				assert.NotNil(t, updatedGap.FilledAt)
@@ -415,7 +415,7 @@ func testDeleteGap(t *testing.T, storage contracts.GapStorage) {
 				// Verify gap was deleted by checking it no longer exists
 				gaps, err := storage.GetGaps(ctx, "BTC/USDT", "1h")
 				require.NoError(t, err)
-				
+
 				for _, gap := range gaps {
 					assert.NotEqual(t, tt.gapID, gap.ID, "Gap should be deleted")
 				}
@@ -487,19 +487,19 @@ func testGapLifecycle(t *testing.T, storage contracts.GapStorage) {
 func testConcurrentGapOperations(t *testing.T, storage contracts.GapStorage) {
 	ctx := context.Background()
 	now := time.Now().UTC()
-	
+
 	const numGoroutines = 10
 	const gapsPerGoroutine = 5
-	
+
 	var wg sync.WaitGroup
 	errors := make(chan error, numGoroutines*gapsPerGoroutine)
-	
+
 	// Concurrent gap creation
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(goroutineID int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < gapsPerGoroutine; j++ {
 				gap := contracts.Gap{
 					ID:        fmt.Sprintf("concurrent-gap-%d-%d", goroutineID, j),
@@ -510,7 +510,7 @@ func testConcurrentGapOperations(t *testing.T, storage contracts.GapStorage) {
 					Status:    "detected",
 					CreatedAt: now,
 				}
-				
+
 				if err := storage.StoreGap(ctx, gap); err != nil {
 					errors <- err
 					return
@@ -518,29 +518,29 @@ func testConcurrentGapOperations(t *testing.T, storage contracts.GapStorage) {
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
 	close(errors)
-	
+
 	// Check for errors
 	var errs []error
 	for err := range errors {
 		errs = append(errs, err)
 	}
 	assert.Empty(t, errs, "Concurrent gap creation should not produce errors")
-	
+
 	// Verify all gaps were created
 	gaps, err := storage.GetGaps(ctx, "BTC/USDT", "1h")
 	require.NoError(t, err)
 	assert.Len(t, gaps, numGoroutines*gapsPerGoroutine)
-	
+
 	// Concurrent gap operations (mark filled and delete)
 	wg = sync.WaitGroup{}
 	errors = make(chan error, len(gaps)*2)
-	
+
 	for i, gap := range gaps {
 		wg.Add(2)
-		
+
 		// Mark some gaps as filled
 		if i%2 == 0 {
 			go func(gapID string) {
@@ -555,7 +555,7 @@ func testConcurrentGapOperations(t *testing.T, storage contracts.GapStorage) {
 				defer wg.Done()
 			}()
 		}
-		
+
 		// Delete some gaps
 		if i%3 == 0 {
 			go func(gapID string) {
@@ -573,10 +573,10 @@ func testConcurrentGapOperations(t *testing.T, storage contracts.GapStorage) {
 			}()
 		}
 	}
-	
+
 	wg.Wait()
 	close(errors)
-	
+
 	// Check for errors (some might be expected due to race conditions)
 	errs = nil
 	for err := range errors {
@@ -584,9 +584,9 @@ func testConcurrentGapOperations(t *testing.T, storage contracts.GapStorage) {
 	}
 	// We expect some "gap not found" errors due to concurrent deletes
 	for _, err := range errs {
-		assert.True(t, 
+		assert.True(t,
 			strings.Contains(strings.ToLower(err.Error()), "gap not found") ||
-			strings.Contains(strings.ToLower(err.Error()), "not found"),
+				strings.Contains(strings.ToLower(err.Error()), "not found"),
 			"Unexpected error type: %v", err)
 	}
 }
@@ -643,8 +643,8 @@ func testOverlappingGaps(t *testing.T, storage contracts.GapStorage) {
 
 	// Verify all retrieved gaps have valid time ranges
 	for _, gap := range retrievedGaps {
-		assert.True(t, gap.StartTime.Before(gap.EndTime), 
-			"Gap %s has invalid time range: start %v, end %v", 
+		assert.True(t, gap.StartTime.Before(gap.EndTime),
+			"Gap %s has invalid time range: start %v, end %v",
 			gap.ID, gap.StartTime, gap.EndTime)
 	}
 }
@@ -697,7 +697,7 @@ func testGapEdgeCases(t *testing.T, storage contracts.GapStorage) {
 			test: func(t *testing.T) {
 				gap := contracts.Gap{
 					ID:        "long-gap",
-					Pair:      "BTC/USDT", 
+					Pair:      "BTC/USDT",
 					Interval:  "1h",
 					StartTime: now.Add(-365 * 24 * time.Hour), // 1 year ago
 					EndTime:   now.Add(-1 * time.Hour),
@@ -738,10 +738,10 @@ func testGapEdgeCases(t *testing.T, storage contracts.GapStorage) {
 					CreatedAt: now.Add(-30 * time.Minute),
 					FilledAt:  &[]time.Time{now.Add(-10 * time.Minute)}[0],
 				}
-				
+
 				err := storage.StoreGap(ctx, gap)
 				require.NoError(t, err)
-				
+
 				// Try to mark it filled again
 				err = storage.MarkGapFilled(ctx, "already-filled", now)
 				// Implementation might allow re-marking or reject it
@@ -755,7 +755,7 @@ func testGapEdgeCases(t *testing.T, storage contracts.GapStorage) {
 			test: func(t *testing.T) {
 				cancelCtx, cancel := context.WithCancel(ctx)
 				cancel() // Cancel immediately
-				
+
 				gap := contracts.Gap{
 					ID:        "cancelled-context",
 					Pair:      "BTC/USDT",
@@ -765,7 +765,7 @@ func testGapEdgeCases(t *testing.T, storage contracts.GapStorage) {
 					Status:    "detected",
 					CreatedAt: now,
 				}
-				
+
 				err := storage.StoreGap(cancelCtx, gap)
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "context")

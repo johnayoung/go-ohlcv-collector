@@ -143,10 +143,10 @@ func TestDetectVolumeSurge(t *testing.T) {
 	threshold := decimal.NewFromFloat(10.0) // 10x
 
 	tests := []struct {
-		name            string
-		currentVolume   decimal.Decimal
-		previousVolume  decimal.Decimal
-		expected        bool
+		name           string
+		currentVolume  decimal.Decimal
+		previousVolume decimal.Decimal
+		expected       bool
 	}{
 		{
 			name:           "no_surge",
@@ -184,14 +184,14 @@ func TestDetectVolumeSurge(t *testing.T) {
 
 func TestValidateOHLCVLogic(t *testing.T) {
 	tests := []struct {
-		name            string
-		open            decimal.Decimal
-		high            decimal.Decimal
-		low             decimal.Decimal
-		close           decimal.Decimal
-		volume          decimal.Decimal
-		expectedErrors  int
-		expectedTypes   []string
+		name           string
+		open           decimal.Decimal
+		high           decimal.Decimal
+		low            decimal.Decimal
+		close          decimal.Decimal
+		volume         decimal.Decimal
+		expectedErrors int
+		expectedTypes  []string
 	}{
 		{
 			name:           "valid_candle",
@@ -203,60 +203,60 @@ func TestValidateOHLCVLogic(t *testing.T) {
 			expectedErrors: 0,
 		},
 		{
-			name:            "high_less_than_open",
-			open:            decimal.NewFromFloat(100.0),
-			high:            decimal.NewFromFloat(95.0), // Invalid
-			low:             decimal.NewFromFloat(90.0),
-			close:           decimal.NewFromFloat(93.0),
-			volume:          decimal.NewFromFloat(1500.0),
-			expectedErrors:  1,
-			expectedTypes:   []string{"high_validation"},
+			name:           "high_less_than_open",
+			open:           decimal.NewFromFloat(100.0),
+			high:           decimal.NewFromFloat(95.0), // Invalid
+			low:            decimal.NewFromFloat(90.0),
+			close:          decimal.NewFromFloat(93.0),
+			volume:         decimal.NewFromFloat(1500.0),
+			expectedErrors: 1,
+			expectedTypes:  []string{"high_validation"},
 		},
 		{
-			name:            "low_greater_than_close",
-			open:            decimal.NewFromFloat(98.0),
-			high:            decimal.NewFromFloat(105.0),
-			low:             decimal.NewFromFloat(99.0), // Invalid
-			close:           decimal.NewFromFloat(97.0),
-			volume:          decimal.NewFromFloat(1500.0),
-			expectedErrors:  1,
-			expectedTypes:   []string{"low_validation"},
+			name:           "low_greater_than_close",
+			open:           decimal.NewFromFloat(98.0),
+			high:           decimal.NewFromFloat(105.0),
+			low:            decimal.NewFromFloat(99.0), // Invalid
+			close:          decimal.NewFromFloat(97.0),
+			volume:         decimal.NewFromFloat(1500.0),
+			expectedErrors: 1,
+			expectedTypes:  []string{"low_validation"},
 		},
 		{
-			name:            "negative_volume",
-			open:            decimal.NewFromFloat(100.0),
-			high:            decimal.NewFromFloat(105.0),
-			low:             decimal.NewFromFloat(95.0),
-			close:           decimal.NewFromFloat(103.0),
-			volume:          decimal.NewFromFloat(-100.0), // Invalid
-			expectedErrors:  1,
-			expectedTypes:   []string{"non_negative_volume"},
+			name:           "negative_volume",
+			open:           decimal.NewFromFloat(100.0),
+			high:           decimal.NewFromFloat(105.0),
+			low:            decimal.NewFromFloat(95.0),
+			close:          decimal.NewFromFloat(103.0),
+			volume:         decimal.NewFromFloat(-100.0), // Invalid
+			expectedErrors: 1,
+			expectedTypes:  []string{"non_negative_volume"},
 		},
 		{
-			name:            "multiple_errors",
-			open:            decimal.NewFromFloat(100.0),
-			high:            decimal.NewFromFloat(95.0),  // Invalid: high < open
-			low:             decimal.NewFromFloat(105.0), // Invalid: low > high and low > open
-			close:           decimal.NewFromFloat(97.0),
-			volume:          decimal.NewFromFloat(-50.0), // Invalid: negative volume
-			expectedErrors:  3,
-			expectedTypes:   []string{"high_validation", "low_validation", "non_negative_volume"},
+			name:           "multiple_errors",
+			open:           decimal.NewFromFloat(100.0),
+			high:           decimal.NewFromFloat(95.0),  // Invalid: high < open
+			low:            decimal.NewFromFloat(105.0), // Invalid: low > high and low > open
+			close:          decimal.NewFromFloat(97.0),
+			volume:         decimal.NewFromFloat(-50.0), // Invalid: negative volume
+			expectedErrors: 3,
+			expectedTypes:  []string{"high_validation", "low_validation", "non_negative_volume"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			anomalies := ValidateOHLCVLogic(tt.open, tt.high, tt.low, tt.close, tt.volume)
-			
+
 			assert.Len(t, anomalies, tt.expectedErrors, "Number of anomalies should match")
-			
+
 			// Check that all expected error types are present
 			for _, expectedType := range tt.expectedTypes {
 				found := false
 				for _, anomaly := range anomalies {
-					if anomaly.Type == AnomalyTypeLogicError && 
-					   len(anomaly.Description) > 0 && 
-					   anomaly.Description[:len(expectedType)] == expectedType {
+					if anomaly.Type == AnomalyTypeLogicError &&
+						len(anomaly.Description) > 0 &&
+						anomaly.Description[:len(expectedType)] == expectedType {
 						found = true
 						break
 					}
@@ -323,12 +323,12 @@ func TestValidateTimestampSequence(t *testing.T) {
 
 func TestDetermineSeverity(t *testing.T) {
 	tests := []struct {
-		name         string
-		anomalyType  AnomalyType
-		value        decimal.Decimal
-		threshold    decimal.Decimal
-		confidence   float64
-		expected     SeverityLevel
+		name        string
+		anomalyType AnomalyType
+		value       decimal.Decimal
+		threshold   decimal.Decimal
+		confidence  float64
+		expected    SeverityLevel
 	}{
 		{
 			name:        "logic_error_always_severe",
@@ -491,9 +491,9 @@ func TestAggregateValidationResults(t *testing.T) {
 		Build()
 
 	results := []*ValidationResult{result1, result2}
-	
+
 	summary := AggregateValidationResults(results)
-	
+
 	assert.Equal(t, 2, summary.TotalResults)
 	assert.Equal(t, 2, summary.TotalAnomalies)
 	assert.Equal(t, 3, summary.TotalChecks) // 1 + 2
@@ -517,7 +517,7 @@ func TestValidationResultHelperMethods(t *testing.T) {
 	// Test HasSeverity
 	assert.True(t, result.HasSeverity(SeverityWarning))
 	assert.True(t, result.HasSeverity(SeverityCritical))
-	
+
 	// Create a result with lower severity to test false case
 	lowSeverityResult := NewValidationResult("test", "BTC-USD", time.Now())
 	lowSeverityResult.Severity = SeverityInfo

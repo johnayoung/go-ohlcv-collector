@@ -17,7 +17,7 @@ import (
 // from data collection through anomaly detection and reporting
 func TestValidationPipeline_EndToEnd(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Initialize validation pipeline - WILL FAIL until implemented
 	validator, err := NewDataValidator(&ValidationConfig{
 		PriceSpikeThreshold:     5.0,  // 500% spike threshold from research.md
@@ -31,7 +31,7 @@ func TestValidationPipeline_EndToEnd(t *testing.T) {
 
 	// Create test OHLCV data with various scenarios
 	testCandles := createTestCandleData()
-	
+
 	// Test complete validation pipeline
 	results, err := validator.ValidateCandles(ctx, testCandles)
 	require.NoError(t, err, "Validation pipeline should not error")
@@ -41,7 +41,7 @@ func TestValidationPipeline_EndToEnd(t *testing.T) {
 	assert.Greater(t, len(results.ValidationErrors), 0, "Should detect validation errors in test data")
 	assert.Greater(t, len(results.AnomalyDetections), 0, "Should detect anomalies in test data")
 	assert.NotNil(t, results.QualityMetrics, "Quality metrics should be present")
-	
+
 	// Test data quality metrics
 	assert.GreaterOrEqual(t, results.QualityMetrics.TotalCandles, int64(len(testCandles)))
 	assert.Greater(t, results.QualityMetrics.ValidationErrors, int64(0))
@@ -52,17 +52,17 @@ func TestValidationPipeline_EndToEnd(t *testing.T) {
 // TestLogicalConsistencyValidation tests OHLCV logical consistency rules
 func TestLogicalConsistencyValidation(t *testing.T) {
 	ctx := context.Background()
-	
+
 	validator, err := NewDataValidator(&ValidationConfig{
 		EnableLogicalChecks: true,
 	})
 	require.NoError(t, err)
 
 	tests := []struct {
-		name           string
-		candle         contracts.Candle
-		expectError    bool
-		errorType      string
+		name        string
+		candle      contracts.Candle
+		expectError bool
+		errorType   string
 	}{
 		{
 			name: "valid_candle_all_fields_consistent",
@@ -180,7 +180,7 @@ func TestLogicalConsistencyValidation(t *testing.T) {
 // TestAnomalyDetection tests price spike and volume surge detection
 func TestAnomalyDetection(t *testing.T) {
 	ctx := context.Background()
-	
+
 	validator, err := NewDataValidator(&ValidationConfig{
 		PriceSpikeThreshold:    5.0,  // 500% spike from research.md
 		VolumeSurgeThreshold:   10.0, // 10x volume surge from research.md
@@ -240,9 +240,9 @@ func TestAnomalyDetection(t *testing.T) {
 				assert.Greater(t, len(results.AnomalyDetections), 0, "Should detect anomalies")
 				found := false
 				for _, anomaly := range results.AnomalyDetections {
-					if anomaly.AnomalyType == tt.anomalyType || 
-					   (tt.anomalyType == "combined_anomaly" && 
-					   (anomaly.AnomalyType == "price_spike" || anomaly.AnomalyType == "volume_surge")) {
+					if anomaly.AnomalyType == tt.anomalyType ||
+						(tt.anomalyType == "combined_anomaly" &&
+							(anomaly.AnomalyType == "price_spike" || anomaly.AnomalyType == "volume_surge")) {
 						found = true
 						break
 					}
@@ -258,7 +258,7 @@ func TestAnomalyDetection(t *testing.T) {
 // TestTimestampSequenceValidation tests timestamp ordering and drift tolerance
 func TestTimestampSequenceValidation(t *testing.T) {
 	ctx := context.Background()
-	
+
 	validator, err := NewDataValidator(&ValidationConfig{
 		TimestampDriftTolerance: time.Minute * 2, // 2 minute tolerance from research.md
 		EnableTimestampChecks:   true,
@@ -266,7 +266,7 @@ func TestTimestampSequenceValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	baseTime := time.Now().Truncate(time.Hour)
-	
+
 	tests := []struct {
 		name        string
 		candles     []contracts.Candle
@@ -387,12 +387,12 @@ func TestConfigurableThresholdsAndRules(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name             string
-		config           *ValidationConfig
-		testCandle       contracts.Candle
-		previousCandle   contracts.Candle
-		expectAnomalies  int
-		expectErrors     int
+		name            string
+		config          *ValidationConfig
+		testCandle      contracts.Candle
+		previousCandle  contracts.Candle
+		expectAnomalies int
+		expectErrors    int
 	}{
 		{
 			name: "strict_thresholds_detect_more_anomalies",
@@ -401,8 +401,8 @@ func TestConfigurableThresholdsAndRules(t *testing.T) {
 				VolumeSurgeThreshold:   2.0, // 2x - strict
 				EnableAnomalyDetection: true,
 			},
-			testCandle:     createCandle("100.00", "180.00", "100.00", "175.00", "3000.00", time.Now()),
-			previousCandle: createCandle("100.00", "105.00", "98.00", "103.00", "1000.00", time.Now().Add(-time.Hour)),
+			testCandle:      createCandle("100.00", "180.00", "100.00", "175.00", "3000.00", time.Now()),
+			previousCandle:  createCandle("100.00", "105.00", "98.00", "103.00", "1000.00", time.Now().Add(-time.Hour)),
 			expectAnomalies: 2, // Both price and volume
 		},
 		{
@@ -412,8 +412,8 @@ func TestConfigurableThresholdsAndRules(t *testing.T) {
 				VolumeSurgeThreshold:   20.0, // 20x - lenient
 				EnableAnomalyDetection: true,
 			},
-			testCandle:     createCandle("100.00", "180.00", "100.00", "175.00", "3000.00", time.Now()),
-			previousCandle: createCandle("100.00", "105.00", "98.00", "103.00", "1000.00", time.Now().Add(-time.Hour)),
+			testCandle:      createCandle("100.00", "180.00", "100.00", "175.00", "3000.00", time.Now()),
+			previousCandle:  createCandle("100.00", "105.00", "98.00", "103.00", "1000.00", time.Now().Add(-time.Hour)),
 			expectAnomalies: 0, // Neither threshold exceeded
 		},
 		{
@@ -422,7 +422,7 @@ func TestConfigurableThresholdsAndRules(t *testing.T) {
 				EnableLogicalChecks: false,
 			},
 			testCandle:   createCandle("100.00", "95.00", "105.00", "103.00", "1000.00", time.Now()), // Invalid logic
-			expectErrors: 0, // Logic checks disabled
+			expectErrors: 0,                                                                          // Logic checks disabled
 		},
 		{
 			name: "enabled_logical_checks",
@@ -430,7 +430,7 @@ func TestConfigurableThresholdsAndRules(t *testing.T) {
 				EnableLogicalChecks: true,
 			},
 			testCandle:   createCandle("100.00", "95.00", "105.00", "103.00", "1000.00", time.Now()), // Invalid logic
-			expectErrors: 2, // High < Open, Low > High
+			expectErrors: 2,                                                                          // High < Open, Low > High
 		},
 	}
 
@@ -449,9 +449,9 @@ func TestConfigurableThresholdsAndRules(t *testing.T) {
 			results, err := validator.ValidateCandles(ctx, candles)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectAnomalies, len(results.AnomalyDetections), 
+			assert.Equal(t, tt.expectAnomalies, len(results.AnomalyDetections),
 				"Anomaly count should match expected for config")
-			assert.Equal(t, tt.expectErrors, len(results.ValidationErrors), 
+			assert.Equal(t, tt.expectErrors, len(results.ValidationErrors),
 				"Error count should match expected for config")
 		})
 	}
@@ -574,10 +574,10 @@ func TestDataQualityMetricsAndReporting(t *testing.T) {
 		// Valid candles
 		createCandle("100.00", "105.00", "98.00", "103.00", "1000.00", time.Now().Add(-3*time.Hour)),
 		createCandle("103.00", "108.00", "101.00", "106.00", "1100.00", time.Now().Add(-2*time.Hour)),
-		
+
 		// Invalid logical consistency
 		createCandle("106.00", "104.00", "102.00", "105.00", "1200.00", time.Now().Add(-time.Hour)), // High < Open
-		
+
 		// Price anomaly
 		createCandle("105.00", "630.00", "105.00", "625.00", "1300.00", time.Now()), // 500%+ spike
 	}
@@ -592,15 +592,15 @@ func TestDataQualityMetricsAndReporting(t *testing.T) {
 	assert.Equal(t, int64(len(testCandles)), metrics.TotalCandles, "Total candles should match input")
 	assert.Greater(t, metrics.ValidationErrors, int64(0), "Should count validation errors")
 	assert.Greater(t, metrics.AnomaliesDetected, int64(0), "Should count anomalies")
-	
+
 	// Quality score should be between 0 and 1
 	assert.GreaterOrEqual(t, metrics.QualityScore, 0.0, "Quality score should be >= 0")
 	assert.LessOrEqual(t, metrics.QualityScore, 1.0, "Quality score should be <= 1")
-	
+
 	// Verify detailed metrics
 	assert.Greater(t, len(metrics.ErrorsByType), 0, "Should categorize errors by type")
 	assert.Greater(t, len(metrics.AnomaliesByType), 0, "Should categorize anomalies by type")
-	
+
 	// Verify processing metadata
 	assert.Greater(t, metrics.ProcessingTimeMs, int64(0), "Should track processing time")
 	assert.False(t, metrics.ProcessedAt.IsZero(), "Should record processing timestamp")
@@ -620,9 +620,9 @@ type ValidationConfig struct {
 
 // ValidationResults represents the results of data validation
 type ValidationResults struct {
-	ValidationErrors   []ValidationError
-	AnomalyDetections  []AnomalyDetection
-	QualityMetrics     *DataQualityMetrics
+	ValidationErrors  []ValidationError
+	AnomalyDetections []AnomalyDetection
+	QualityMetrics    *DataQualityMetrics
 }
 
 // ValidationError represents a data validation error
@@ -635,24 +635,24 @@ type ValidationError struct {
 
 // AnomalyDetection represents an detected anomaly
 type AnomalyDetection struct {
-	CandleIndex   int
-	AnomalyType   string
-	Severity      string
-	Confidence    float64
-	Description   string
+	CandleIndex int
+	AnomalyType string
+	Severity    string
+	Confidence  float64
+	Description string
 }
 
 // DataQualityMetrics represents data quality metrics
 type DataQualityMetrics struct {
-	TotalCandles       int64
-	ValidCandles       int64
-	ValidationErrors   int64
-	AnomaliesDetected  int64
-	QualityScore       float64
-	ErrorsByType       map[string]int64
-	AnomaliesByType    map[string]int64
-	ProcessingTimeMs   int64
-	ProcessedAt        time.Time
+	TotalCandles      int64
+	ValidCandles      int64
+	ValidationErrors  int64
+	AnomaliesDetected int64
+	QualityScore      float64
+	ErrorsByType      map[string]int64
+	AnomaliesByType   map[string]int64
+	ProcessingTimeMs  int64
+	ProcessedAt       time.Time
 }
 
 // Mock interfaces for testing (these will fail until implemented)
@@ -730,13 +730,13 @@ func createTestCandleData() []contracts.Candle {
 		createCandle("100.00", "105.00", "98.00", "103.00", "1000.00", now.Add(-5*time.Hour)),
 		createCandle("103.00", "108.00", "101.00", "106.00", "1100.00", now.Add(-4*time.Hour)),
 		createCandle("106.00", "111.00", "104.00", "109.00", "1200.00", now.Add(-3*time.Hour)),
-		
+
 		// Invalid logical consistency
 		createCandle("109.00", "107.00", "102.00", "105.00", "1300.00", now.Add(-2*time.Hour)), // High < Open
-		
+
 		// Price anomaly (500%+ spike)
 		createCandle("105.00", "630.00", "105.00", "625.00", "1400.00", now.Add(-time.Hour)),
-		
+
 		// Volume anomaly (10x+ surge)
 		createCandle("625.00", "630.00", "620.00", "628.00", "15000.00", now),
 	}
@@ -759,7 +759,7 @@ func createCandleAtTime(close string, timestamp time.Time) contracts.Candle {
 	// Create a candle with consistent OHLC values at specified time
 	price := decimal.RequireFromString(close)
 	variation := decimal.NewFromFloat(2.0)
-	
+
 	return contracts.Candle{
 		Timestamp: timestamp,
 		Open:      price.String(),

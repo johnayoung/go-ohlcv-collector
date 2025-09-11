@@ -17,67 +17,67 @@ func TestErrorClassification(t *testing.T) {
 	classifier := NewErrorClassifier(config.DefaultConfig().ErrorHandling, logger)
 
 	tests := []struct {
-		name           string
-		error          error
-		expectedType   ErrorType
+		name              string
+		error             error
+		expectedType      ErrorType
 		expectedRetryable bool
 		expectedSeverity  Severity
 	}{
 		{
-			name:             "network connection refused",
-			error:            fmt.Errorf("connection refused"),
-			expectedType:     ErrorTypeNetwork,
+			name:              "network connection refused",
+			error:             fmt.Errorf("connection refused"),
+			expectedType:      ErrorTypeNetwork,
 			expectedRetryable: true,
-			expectedSeverity: SeverityLow,
+			expectedSeverity:  SeverityLow,
 		},
 		{
-			name:             "timeout error",
-			error:            fmt.Errorf("context deadline exceeded"),
-			expectedType:     ErrorTypeTimeout,
+			name:              "timeout error",
+			error:             fmt.Errorf("context deadline exceeded"),
+			expectedType:      ErrorTypeTimeout,
 			expectedRetryable: true,
-			expectedSeverity: SeverityLow,
+			expectedSeverity:  SeverityLow,
 		},
 		{
-			name:             "rate limit error",
-			error:            fmt.Errorf("rate limit exceeded"),
-			expectedType:     ErrorTypeRateLimit,
+			name:              "rate limit error",
+			error:             fmt.Errorf("rate limit exceeded"),
+			expectedType:      ErrorTypeRateLimit,
 			expectedRetryable: true,
-			expectedSeverity: SeverityLow,
+			expectedSeverity:  SeverityLow,
 		},
 		{
-			name:             "authentication error",
-			error:            fmt.Errorf("unauthorized: invalid credentials"),
-			expectedType:     ErrorTypeAuthentication,
+			name:              "authentication error",
+			error:             fmt.Errorf("unauthorized: invalid credentials"),
+			expectedType:      ErrorTypeAuthentication,
 			expectedRetryable: false,
-			expectedSeverity: SeverityHigh,
+			expectedSeverity:  SeverityHigh,
 		},
 		{
-			name:             "validation error",
-			error:            fmt.Errorf("validation failed: invalid input"),
-			expectedType:     ErrorTypeValidation,
+			name:              "validation error",
+			error:             fmt.Errorf("validation failed: invalid input"),
+			expectedType:      ErrorTypeValidation,
 			expectedRetryable: false,
-			expectedSeverity: SeverityMedium,
+			expectedSeverity:  SeverityMedium,
 		},
 		{
-			name:             "server error",
-			error:            fmt.Errorf("internal server error"),
-			expectedType:     ErrorTypeServerError,
+			name:              "server error",
+			error:             fmt.Errorf("internal server error"),
+			expectedType:      ErrorTypeServerError,
 			expectedRetryable: true,
-			expectedSeverity: SeverityMedium,
+			expectedSeverity:  SeverityMedium,
 		},
 		{
-			name:             "unknown error",
-			error:            fmt.Errorf("something went wrong"),
-			expectedType:     ErrorTypeUnknown,
+			name:              "unknown error",
+			error:             fmt.Errorf("something went wrong"),
+			expectedType:      ErrorTypeUnknown,
 			expectedRetryable: true,
-			expectedSeverity: SeverityMedium,
+			expectedSeverity:  SeverityMedium,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			classified := classifier.Classify(tt.error, "test_component", "test_operation")
-			
+
 			assert.Equal(t, tt.expectedType, classified.Type, "Error type mismatch")
 			assert.Equal(t, tt.expectedRetryable, classified.Retryable, "Retryable mismatch")
 			assert.Equal(t, tt.expectedSeverity, classified.Severity, "Severity mismatch")
@@ -157,14 +157,14 @@ func TestTimeoutErrorDetection(t *testing.T) {
 
 func TestRetryMechanism(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	
+
 	// Create configuration with short delays for testing
 	cfg := config.DefaultConfig().ErrorHandling
 	cfg.GlobalRetryPolicy.MaxAttempts = 3
 	cfg.GlobalRetryPolicy.InitialDelay = "10ms"
 	cfg.GlobalRetryPolicy.MaxDelay = "50ms"
 	cfg.GlobalRetryPolicy.BackoffStrategy = "fixed"
-	
+
 	classifier := NewErrorClassifier(cfg, logger)
 
 	t.Run("successful retry after failures", func(t *testing.T) {
@@ -179,7 +179,7 @@ func TestRetryMechanism(t *testing.T) {
 
 		ctx := context.Background()
 		err := classifier.Retry(ctx, "test", "operation", fn)
-		
+
 		assert.NoError(t, err)
 		assert.Equal(t, 3, attempts)
 	})
@@ -193,10 +193,10 @@ func TestRetryMechanism(t *testing.T) {
 
 		ctx := context.Background()
 		err := classifier.Retry(ctx, "test", "operation", fn)
-		
+
 		assert.Error(t, err)
 		assert.Equal(t, 1, attempts)
-		
+
 		classified := classifier.Classify(fmt.Errorf("unauthorized: invalid credentials"), "test", "operation")
 		assert.False(t, classified.Retryable)
 	})
@@ -210,7 +210,7 @@ func TestRetryMechanism(t *testing.T) {
 
 		ctx := context.Background()
 		err := classifier.Retry(ctx, "test", "operation", fn)
-		
+
 		assert.Error(t, err)
 		assert.Equal(t, 3, attempts) // max attempts from config
 		assert.Contains(t, err.Error(), "operation failed after 3 attempts")
@@ -225,7 +225,7 @@ func TestRetryMechanism(t *testing.T) {
 		}
 
 		err := classifier.Retry(ctx, "test", "operation", fn)
-		
+
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "context canceled")
 	})
@@ -233,20 +233,20 @@ func TestRetryMechanism(t *testing.T) {
 
 func TestBackoffStrategies(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	
+
 	t.Run("exponential backoff", func(t *testing.T) {
 		cfg := config.DefaultConfig().ErrorHandling
 		cfg.GlobalRetryPolicy.BackoffStrategy = "exponential"
 		cfg.GlobalRetryPolicy.InitialDelay = "100ms"
 		cfg.GlobalRetryPolicy.MaxDelay = "1s"
 		cfg.GlobalRetryPolicy.Jitter = false
-		
+
 		classifier := NewErrorClassifier(cfg, logger)
 		backoffStrategy := classifier.createBackoffStrategy(cfg.GlobalRetryPolicy)
-		
+
 		first := backoffStrategy.NextBackOff()
 		second := backoffStrategy.NextBackOff()
-		
+
 		assert.True(t, second >= first, "Exponential backoff should increase")
 		assert.True(t, first >= 100*time.Millisecond, "First delay should be at least initial delay")
 	})
@@ -256,14 +256,14 @@ func TestBackoffStrategies(t *testing.T) {
 		cfg.GlobalRetryPolicy.BackoffStrategy = "linear"
 		cfg.GlobalRetryPolicy.InitialDelay = "100ms"
 		cfg.GlobalRetryPolicy.MaxDelay = "1s"
-		
+
 		classifier := NewErrorClassifier(cfg, logger)
 		backoffStrategy := classifier.createBackoffStrategy(cfg.GlobalRetryPolicy)
-		
+
 		first := backoffStrategy.NextBackOff()
 		second := backoffStrategy.NextBackOff()
 		third := backoffStrategy.NextBackOff()
-		
+
 		assert.Equal(t, 100*time.Millisecond, first)
 		assert.Equal(t, 200*time.Millisecond, second)
 		assert.Equal(t, 300*time.Millisecond, third)
@@ -273,13 +273,13 @@ func TestBackoffStrategies(t *testing.T) {
 		cfg := config.DefaultConfig().ErrorHandling
 		cfg.GlobalRetryPolicy.BackoffStrategy = "fixed"
 		cfg.GlobalRetryPolicy.InitialDelay = "200ms"
-		
+
 		classifier := NewErrorClassifier(cfg, logger)
 		backoffStrategy := classifier.createBackoffStrategy(cfg.GlobalRetryPolicy)
-		
+
 		first := backoffStrategy.NextBackOff()
 		second := backoffStrategy.NextBackOff()
-		
+
 		assert.Equal(t, first, second, "Fixed backoff should remain constant")
 		assert.Equal(t, 200*time.Millisecond, first)
 	})
@@ -320,7 +320,7 @@ func TestJitteredBackoff(t *testing.T) {
 	}
 
 	jb := &JitteredBackoff{BackOff: fixed}
-	
+
 	// Test that jitter adds variance
 	delays := make([]time.Duration, 10)
 	for i := range delays {
@@ -357,7 +357,7 @@ func TestCircuitBreaker(t *testing.T) {
 
 	t.Run("closed state allows requests", func(t *testing.T) {
 		assert.Equal(t, CircuitClosed, cb.GetState())
-		
+
 		err := cb.Call(func() error {
 			return nil
 		})
@@ -371,9 +371,9 @@ func TestCircuitBreaker(t *testing.T) {
 				return fmt.Errorf("failure %d", i)
 			})
 		}
-		
+
 		assert.Equal(t, CircuitOpen, cb.GetState())
-		
+
 		// Requests should be rejected
 		err := cb.Call(func() error {
 			return nil
@@ -385,7 +385,7 @@ func TestCircuitBreaker(t *testing.T) {
 	t.Run("transitions to half-open after timeout", func(t *testing.T) {
 		// Wait for recovery timeout
 		time.Sleep(150 * time.Millisecond)
-		
+
 		// First request should be allowed (moves to half-open)
 		err := cb.Call(func() error {
 			return nil
@@ -396,7 +396,7 @@ func TestCircuitBreaker(t *testing.T) {
 	t.Run("closes after successful half-open requests", func(t *testing.T) {
 		// Reset circuit breaker for clean test
 		cb = NewCircuitBreaker("test_circuit_2", config)
-		
+
 		// Open the circuit
 		for i := 0; i < 3; i++ {
 			cb.Call(func() error {
@@ -404,10 +404,10 @@ func TestCircuitBreaker(t *testing.T) {
 			})
 		}
 		assert.Equal(t, CircuitOpen, cb.GetState())
-		
+
 		// Wait for recovery
 		time.Sleep(150 * time.Millisecond)
-		
+
 		// Make successful requests to close the circuit
 		for i := 0; i < 2; i++ {
 			err := cb.Call(func() error {
@@ -415,7 +415,7 @@ func TestCircuitBreaker(t *testing.T) {
 			})
 			assert.NoError(t, err)
 		}
-		
+
 		// Circuit should be closed now
 		assert.Equal(t, CircuitClosed, cb.GetState())
 	})
@@ -447,7 +447,7 @@ func TestClassifiedErrorInterface(t *testing.T) {
 	t.Run("is interface", func(t *testing.T) {
 		other := &ClassifiedError{Type: ErrorTypeNetwork}
 		assert.True(t, classified.Is(other))
-		
+
 		different := &ClassifiedError{Type: ErrorTypeTimeout}
 		assert.False(t, classified.Is(different))
 	})
@@ -457,7 +457,7 @@ func TestUtilityFunctions(t *testing.T) {
 	t.Run("WrapError", func(t *testing.T) {
 		original := fmt.Errorf("original error")
 		wrapped := WrapError(original, "component", "operation", "something failed")
-		
+
 		assert.Contains(t, wrapped.Error(), "something failed")
 		assert.Contains(t, wrapped.Error(), "component.operation")
 		assert.Contains(t, wrapped.Error(), "original error")
@@ -467,7 +467,7 @@ func TestUtilityFunctions(t *testing.T) {
 		retryable := &ClassifiedError{Retryable: true}
 		notRetryable := &ClassifiedError{Retryable: false}
 		regular := fmt.Errorf("regular error")
-		
+
 		assert.True(t, IsRetryable(retryable))
 		assert.False(t, IsRetryable(notRetryable))
 		assert.False(t, IsRetryable(regular))
@@ -476,7 +476,7 @@ func TestUtilityFunctions(t *testing.T) {
 	t.Run("GetErrorType", func(t *testing.T) {
 		classified := &ClassifiedError{Type: ErrorTypeNetwork}
 		regular := fmt.Errorf("regular error")
-		
+
 		assert.Equal(t, ErrorTypeNetwork, GetErrorType(classified))
 		assert.Equal(t, ErrorTypeUnknown, GetErrorType(regular))
 	})
@@ -484,7 +484,7 @@ func TestUtilityFunctions(t *testing.T) {
 	t.Run("GetSeverity", func(t *testing.T) {
 		classified := &ClassifiedError{Severity: SeverityCritical}
 		regular := fmt.Errorf("regular error")
-		
+
 		assert.Equal(t, SeverityCritical, GetSeverity(classified))
 		assert.Equal(t, SeverityMedium, GetSeverity(regular))
 	})
@@ -507,7 +507,7 @@ func TestErrorStats(t *testing.T) {
 	}
 
 	stats := classifier.GetStats()
-	
+
 	// Check that we have stats for the error types we generated
 	assert.Contains(t, stats, ErrorTypeNetwork)
 	assert.Contains(t, stats, ErrorTypeTimeout)
@@ -547,10 +547,10 @@ func TestNetErrorInterface(t *testing.T) {
 
 func TestComponentSpecificRetryPolicy(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	
+
 	cfg := config.DefaultConfig().ErrorHandling
 	cfg.GlobalRetryPolicy.MaxAttempts = 3
-	
+
 	// Add component-specific policy
 	cfg.ComponentPolicies = map[string]config.RetryPolicyConfig{
 		"special_component": {
@@ -561,7 +561,7 @@ func TestComponentSpecificRetryPolicy(t *testing.T) {
 			RetryableErrors: []string{"network", "timeout"},
 		},
 	}
-	
+
 	classifier := NewErrorClassifier(cfg, logger)
 
 	t.Run("uses component-specific policy", func(t *testing.T) {

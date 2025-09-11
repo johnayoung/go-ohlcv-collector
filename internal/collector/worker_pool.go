@@ -36,8 +36,8 @@ type WorkerPool struct {
 	wg      sync.WaitGroup
 
 	// Statistics
-	stats       *workerPoolStats
-	isStarted   int32
+	stats     *workerPoolStats
+	isStarted int32
 }
 
 // jobWrapper wraps a job with its callback
@@ -60,13 +60,13 @@ type Worker struct {
 
 // workerPoolStats tracks worker pool statistics
 type workerPoolStats struct {
-	activeWorkers   int32
-	queuedJobs      int32
-	completedJobs   int64
-	failedJobs      int64
-	totalJobTime    int64 // nanoseconds
-	jobCount        int64
-	mu              sync.RWMutex
+	activeWorkers int32
+	queuedJobs    int32
+	completedJobs int64
+	failedJobs    int64
+	totalJobTime  int64 // nanoseconds
+	jobCount      int64
+	mu            sync.RWMutex
 }
 
 // workerStats tracks individual worker statistics
@@ -186,11 +186,11 @@ func (wp *WorkerPool) GetStats() *WorkerPoolStats {
 	}
 
 	return &WorkerPoolStats{
-		ActiveWorkers:   int(atomic.LoadInt32(&wp.stats.activeWorkers)),
-		QueuedJobs:      int(atomic.LoadInt32(&wp.stats.queuedJobs)),
-		CompletedJobs:   atomic.LoadInt64(&wp.stats.completedJobs),
-		FailedJobs:      atomic.LoadInt64(&wp.stats.failedJobs),
-		AvgJobDuration:  avgJobDuration,
+		ActiveWorkers:  int(atomic.LoadInt32(&wp.stats.activeWorkers)),
+		QueuedJobs:     int(atomic.LoadInt32(&wp.stats.queuedJobs)),
+		CompletedJobs:  atomic.LoadInt64(&wp.stats.completedJobs),
+		FailedJobs:     atomic.LoadInt64(&wp.stats.failedJobs),
+		AvgJobDuration: avgJobDuration,
 	}
 }
 

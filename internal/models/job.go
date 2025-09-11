@@ -74,7 +74,8 @@ func (e JobError) Error() string {
 // All time values should be in UTC.
 //
 // Example:
-//     job := NewJob("job-123", JobTypeUpdate, "BTC-USD", start, end, "1h")
+//
+//	job := NewJob("job-123", JobTypeUpdate, "BTC-USD", start, end, "1h")
 func NewJob(id string, jobType JobType, pair string, startTime, endTime time.Time, interval string) *Job {
 	now := time.Now().UTC()
 	return &Job{
@@ -116,8 +117,8 @@ func (j *Job) Validate() error {
 	// Job type validation
 	if !j.isValidJobType() {
 		errors = append(errors, JobError{
-			Field:   "Type",
-			Message: fmt.Sprintf("invalid job type '%s', must be one of: %s, %s, %s", 
+			Field: "Type",
+			Message: fmt.Sprintf("invalid job type '%s', must be one of: %s, %s, %s",
 				j.Type, JobTypeInitialSync, JobTypeUpdate, JobTypeBackfill),
 		})
 	}
@@ -125,8 +126,8 @@ func (j *Job) Validate() error {
 	// Status validation
 	if !j.isValidStatus() {
 		errors = append(errors, JobError{
-			Field:   "Status",
-			Message: fmt.Sprintf("invalid status '%s', must be one of: %s, %s, %s, %s", 
+			Field: "Status",
+			Message: fmt.Sprintf("invalid status '%s', must be one of: %s, %s, %s, %s",
 				j.Status, StatusPending, StatusRunning, StatusCompleted, StatusFailed),
 		})
 	}
@@ -394,7 +395,7 @@ func (j *Job) GetNextRetryDelay() time.Duration {
 	// Exponential backoff: base_delay * (multiplier ^ retry_count)
 	baseDelaySeconds := 60 // 1 minute in seconds
 	delaySeconds := float64(baseDelaySeconds) * math.Pow(BackoffMultiplier, float64(j.RetryCount))
-	
+
 	// Cap at 30 minutes
 	maxDelaySeconds := float64(30 * 60)
 	if delaySeconds > maxDelaySeconds {
@@ -499,11 +500,11 @@ func FromJSON(jsonStr string) (*Job, error) {
 	if err := json.Unmarshal([]byte(jsonStr), &job); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON to job: %w", err)
 	}
-	
+
 	if err := job.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid job data: %w", err)
 	}
-	
+
 	return &job, nil
 }
 

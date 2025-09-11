@@ -311,11 +311,12 @@ func (c *Candle) String() string {
 // Returns a ValidationError if any validation fails.
 //
 // Example:
-//     candle, err := NewCandle(
-//         time.Now(),
-//         "100.50", "101.00", "100.00", "100.75", "1000.5",
-//         "BTC-USD", "1m",
-//     )
+//
+//	candle, err := NewCandle(
+//	    time.Now(),
+//	    "100.50", "101.00", "100.00", "100.75", "1000.5",
+//	    "BTC-USD", "1m",
+//	)
 func NewCandle(timestamp time.Time, open, high, low, close, volume, pair, interval string) (*Candle, error) {
 	candle := &Candle{
 		Timestamp: timestamp,

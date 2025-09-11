@@ -201,7 +201,7 @@ func (lm *LoggerManager) WithContext(ctx context.Context) *slog.Logger {
 func (lm *LoggerManager) WithComponentContext(ctx context.Context, component string) *ComponentLogger {
 	attrs := extractContextAttributes(ctx)
 	attrs = append(attrs, slog.String("component", component))
-	
+
 	logger := lm.baseLogger.With(attrs...)
 	return &ComponentLogger{Logger: logger, component: component}
 }
@@ -348,7 +348,7 @@ func (cl *ComponentLogger) WithJobID(jobID string) *slog.Logger {
 
 // WithDuration logs an operation with its duration
 func (cl *ComponentLogger) WithDuration(operation string, duration time.Duration, level slog.Level, msg string, args ...interface{}) {
-	cl.Log(context.Background(), level, msg, 
+	cl.Log(context.Background(), level, msg,
 		append([]interface{}{
 			slog.String("operation", operation),
 			slog.Duration("duration", duration),
@@ -363,7 +363,7 @@ func (cl *ComponentLogger) ErrorWithContext(ctx context.Context, msg string, err
 	cl.Error(msg, attrs...)
 }
 
-// WarnWithContext logs a warning with full context information  
+// WarnWithContext logs a warning with full context information
 func (cl *ComponentLogger) WarnWithContext(ctx context.Context, msg string, args ...interface{}) {
 	attrs := extractContextAttributes(ctx)
 	attrs = append(attrs, args...)
@@ -388,21 +388,21 @@ func (cl *ComponentLogger) DebugWithContext(ctx context.Context, msg string, arg
 func (cl *ComponentLogger) LogOperation(ctx context.Context, operation string, fn func() error) error {
 	start := time.Now()
 	cl.InfoWithContext(ctx, "operation started", slog.String("operation", operation))
-	
+
 	err := fn()
 	duration := time.Since(start)
-	
+
 	if err != nil {
-		cl.ErrorWithContext(ctx, "operation failed", err, 
+		cl.ErrorWithContext(ctx, "operation failed", err,
 			slog.String("operation", operation),
 			slog.Duration("duration", duration))
 		return err
 	}
-	
+
 	cl.InfoWithContext(ctx, "operation completed",
 		slog.String("operation", operation),
 		slog.Duration("duration", duration))
-	
+
 	return nil
 }
 
@@ -447,7 +447,7 @@ func TimedOperation(logger *slog.Logger, operation string, fn func() error) erro
 	start := time.Now()
 	err := fn()
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		logger.Error("timed operation failed",
 			slog.String("operation", operation),
@@ -455,36 +455,36 @@ func TimedOperation(logger *slog.Logger, operation string, fn func() error) erro
 			slog.Any("error", err))
 		return err
 	}
-	
+
 	logger.Info("timed operation completed",
 		slog.String("operation", operation),
 		slog.Duration("duration", duration))
-	
+
 	return nil
 }
 
 // TimedOperationWithContext logs an operation with context and timing
 func TimedOperationWithContext(ctx context.Context, logger *slog.Logger, operation string, fn func() error) error {
 	start := time.Now()
-	
+
 	// Add operation to context
 	ctx = WithOperation(ctx, operation)
-	
+
 	logger.InfoContext(ctx, "operation started")
-	
+
 	err := fn()
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		logger.ErrorContext(ctx, "operation failed",
 			slog.Duration("duration", duration),
 			slog.Any("error", err))
 		return err
 	}
-	
+
 	logger.InfoContext(ctx, "operation completed",
 		slog.Duration("duration", duration))
-	
+
 	return nil
 }
 

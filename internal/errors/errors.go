@@ -23,24 +23,24 @@ type ErrorType string
 
 const (
 	// Retryable error types
-	ErrorTypeNetwork        ErrorType = "network"          // Network connectivity issues
-	ErrorTypeTimeout        ErrorType = "timeout"          // Request timeout
-	ErrorTypeRateLimit      ErrorType = "rate_limit"       // Rate limiting from external service
-	ErrorTypeServerError    ErrorType = "server_error"     // HTTP 5xx errors
-	ErrorTypeTemporary      ErrorType = "temporary"        // Temporary failures
-	ErrorTypeCircuitOpen    ErrorType = "circuit_open"     // Circuit breaker is open
-	
+	ErrorTypeNetwork     ErrorType = "network"      // Network connectivity issues
+	ErrorTypeTimeout     ErrorType = "timeout"      // Request timeout
+	ErrorTypeRateLimit   ErrorType = "rate_limit"   // Rate limiting from external service
+	ErrorTypeServerError ErrorType = "server_error" // HTTP 5xx errors
+	ErrorTypeTemporary   ErrorType = "temporary"    // Temporary failures
+	ErrorTypeCircuitOpen ErrorType = "circuit_open" // Circuit breaker is open
+
 	// Non-retryable error types
-	ErrorTypeAuthentication ErrorType = "authentication"   // Authentication/authorization failures
-	ErrorTypeBadRequest     ErrorType = "bad_request"      // HTTP 4xx errors (except rate limit)
-	ErrorTypeValidation     ErrorType = "validation"       // Data validation errors
-	ErrorTypeConfiguration ErrorType = "configuration"    // Configuration errors
-	ErrorTypePanic          ErrorType = "panic"            // Panic recovery
-	ErrorTypeInternal       ErrorType = "internal"         // Internal application errors
-	
+	ErrorTypeAuthentication ErrorType = "authentication" // Authentication/authorization failures
+	ErrorTypeBadRequest     ErrorType = "bad_request"    // HTTP 4xx errors (except rate limit)
+	ErrorTypeValidation     ErrorType = "validation"     // Data validation errors
+	ErrorTypeConfiguration  ErrorType = "configuration"  // Configuration errors
+	ErrorTypePanic          ErrorType = "panic"          // Panic recovery
+	ErrorTypeInternal       ErrorType = "internal"       // Internal application errors
+
 	// Special error types
-	ErrorTypeUnknown        ErrorType = "unknown"          // Unclassified errors
-	ErrorTypeFatal          ErrorType = "fatal"            // Fatal errors that should stop processing
+	ErrorTypeUnknown ErrorType = "unknown" // Unclassified errors
+	ErrorTypeFatal   ErrorType = "fatal"   // Fatal errors that should stop processing
 )
 
 // Severity represents the severity level of an error
@@ -103,20 +103,20 @@ func (ce *ClassifiedError) Is(target error) bool {
 
 // ErrorClassifier handles error classification and retry logic
 type ErrorClassifier struct {
-	config       config.ErrorHandlingConfig
-	logger       *slog.Logger
-	mu           sync.RWMutex
-	stats        map[ErrorType]ErrorStats
+	config          config.ErrorHandlingConfig
+	logger          *slog.Logger
+	mu              sync.RWMutex
+	stats           map[ErrorType]ErrorStats
 	circuitBreakers map[string]*CircuitBreaker
 }
 
 // ErrorStats tracks error statistics for monitoring
 type ErrorStats struct {
-	Count       int64     `json:"count"`
-	LastSeen    time.Time `json:"last_seen"`
-	FirstSeen   time.Time `json:"first_seen"`
-	Retries     int64     `json:"retries"`
-	Successes   int64     `json:"successes"`
+	Count     int64     `json:"count"`
+	LastSeen  time.Time `json:"last_seen"`
+	FirstSeen time.Time `json:"first_seen"`
+	Retries   int64     `json:"retries"`
+	Successes int64     `json:"successes"`
 }
 
 // NewErrorClassifier creates a new error classifier with the given configuration
@@ -193,45 +193,45 @@ func (ec *ErrorClassifier) classifyErrorType(err error) ErrorType {
 	}
 
 	// Rate limit errors (common patterns)
-	if strings.Contains(errStr, "rate limit") || 
-	   strings.Contains(errStr, "too many requests") ||
-	   strings.Contains(errStr, "quota exceeded") {
+	if strings.Contains(errStr, "rate limit") ||
+		strings.Contains(errStr, "too many requests") ||
+		strings.Contains(errStr, "quota exceeded") {
 		return ErrorTypeRateLimit
 	}
 
 	// Authentication errors
 	if strings.Contains(errStr, "unauthorized") ||
-	   strings.Contains(errStr, "forbidden") ||
-	   strings.Contains(errStr, "authentication") ||
-	   strings.Contains(errStr, "invalid credentials") {
+		strings.Contains(errStr, "forbidden") ||
+		strings.Contains(errStr, "authentication") ||
+		strings.Contains(errStr, "invalid credentials") {
 		return ErrorTypeAuthentication
 	}
 
 	// Validation errors
 	if strings.Contains(errStr, "validation") ||
-	   strings.Contains(errStr, "invalid") ||
-	   strings.Contains(errStr, "malformed") ||
-	   strings.Contains(errStr, "parse") {
+		strings.Contains(errStr, "invalid") ||
+		strings.Contains(errStr, "malformed") ||
+		strings.Contains(errStr, "parse") {
 		return ErrorTypeValidation
 	}
 
 	// Configuration errors
 	if strings.Contains(errStr, "config") ||
-	   strings.Contains(errStr, "missing required") ||
-	   strings.Contains(errStr, "not configured") {
+		strings.Contains(errStr, "missing required") ||
+		strings.Contains(errStr, "not configured") {
 		return ErrorTypeConfiguration
 	}
 
 	// Server errors (generic patterns)
 	if strings.Contains(errStr, "server error") ||
-	   strings.Contains(errStr, "internal server") ||
-	   strings.Contains(errStr, "service unavailable") {
+		strings.Contains(errStr, "internal server") ||
+		strings.Contains(errStr, "service unavailable") {
 		return ErrorTypeServerError
 	}
 
 	// Panic recovery
 	if strings.Contains(errStr, "panic") ||
-	   strings.Contains(errStr, "runtime error") {
+		strings.Contains(errStr, "runtime error") {
 		return ErrorTypePanic
 	}
 
@@ -277,9 +277,9 @@ func isTimeoutError(err error) bool {
 
 	errStr := strings.ToLower(err.Error())
 	return strings.Contains(errStr, "timeout") ||
-		   strings.Contains(errStr, "deadline exceeded") ||
-		   strings.Contains(errStr, "context canceled") ||
-		   strings.Contains(errStr, "context deadline exceeded")
+		strings.Contains(errStr, "deadline exceeded") ||
+		strings.Contains(errStr, "context canceled") ||
+		strings.Contains(errStr, "context deadline exceeded")
 }
 
 // determineSeverity assigns a severity level based on error type
@@ -309,11 +309,11 @@ func (ec *ErrorClassifier) isRetryable(errorType ErrorType, err error) bool {
 
 	// Default retryable types
 	switch errorType {
-	case ErrorTypeNetwork, ErrorTypeTimeout, ErrorTypeRateLimit, 
-		 ErrorTypeServerError, ErrorTypeTemporary:
+	case ErrorTypeNetwork, ErrorTypeTimeout, ErrorTypeRateLimit,
+		ErrorTypeServerError, ErrorTypeTemporary:
 		return true
 	case ErrorTypeAuthentication, ErrorTypeBadRequest, ErrorTypeValidation,
-		 ErrorTypeConfiguration, ErrorTypeFatal, ErrorTypePanic:
+		ErrorTypeConfiguration, ErrorTypeFatal, ErrorTypePanic:
 		return false
 	default:
 		// Unknown errors are retryable with caution
@@ -329,7 +329,7 @@ func (ec *ErrorClassifier) updateStats(errorType ErrorType) {
 	stats := ec.stats[errorType]
 	stats.Count++
 	stats.LastSeen = time.Now()
-	
+
 	if stats.FirstSeen.IsZero() {
 		stats.FirstSeen = stats.LastSeen
 	}
@@ -340,17 +340,17 @@ func (ec *ErrorClassifier) updateStats(errorType ErrorType) {
 // Retry executes a function with retry logic based on classified errors
 func (ec *ErrorClassifier) Retry(ctx context.Context, component, operation string, fn func() error) error {
 	policy := ec.getRetryPolicy(component)
-	
+
 	// Create backoff strategy
 	backoffStrategy := ec.createBackoffStrategy(policy)
-	
+
 	var lastErr error
 	attempts := 0
 	maxAttempts := policy.MaxAttempts
-	
+
 	for {
 		attempts++
-		
+
 		// Execute the function
 		err := fn()
 		if err == nil {
@@ -417,9 +417,9 @@ func (ec *ErrorClassifier) getRetryPolicy(component string) config.RetryPolicyCo
 func (ec *ErrorClassifier) createBackoffStrategy(policy config.RetryPolicyConfig) backoff.BackOff {
 	initialDelay, _ := time.ParseDuration(policy.InitialDelay)
 	maxDelay, _ := time.ParseDuration(policy.MaxDelay)
-	
+
 	var strategy backoff.BackOff
-	
+
 	switch policy.BackoffStrategy {
 	case "fixed":
 		strategy = backoff.NewConstantBackOff(initialDelay)
@@ -476,26 +476,26 @@ func (ec *ErrorClassifier) recordFailure(component, operation string, attempts i
 func (ec *ErrorClassifier) GetStats() map[ErrorType]ErrorStats {
 	ec.mu.RLock()
 	defer ec.mu.RUnlock()
-	
+
 	// Create a copy to avoid race conditions
 	stats := make(map[ErrorType]ErrorStats)
 	for k, v := range ec.stats {
 		stats[k] = v
 	}
-	
+
 	return stats
 }
 
 // CircuitBreaker implements the circuit breaker pattern
 type CircuitBreaker struct {
-	name           string
-	config         config.CircuitBreakerConfig
-	state          CircuitState
-	failures       int
-	lastFailure    time.Time
-	nextRetry      time.Time
-	testRequests   int
-	mu             sync.RWMutex
+	name         string
+	config       config.CircuitBreakerConfig
+	state        CircuitState
+	failures     int
+	lastFailure  time.Time
+	nextRetry    time.Time
+	testRequests int
+	mu           sync.RWMutex
 }
 
 // CircuitState represents the state of a circuit breaker
@@ -664,10 +664,10 @@ func (jb *JitteredBackoff) NextBackOff() time.Duration {
 	if next == backoff.Stop {
 		return next
 	}
-	
+
 	// Add ±10% jitter
 	jitter := float64(next) * 0.1
-	offset := (2.0 * float64(time.Now().UnixNano()%1000) / 1000.0 - 1.0) * jitter
+	offset := (2.0*float64(time.Now().UnixNano()%1000)/1000.0 - 1.0) * jitter
 	return next + time.Duration(offset)
 }
 

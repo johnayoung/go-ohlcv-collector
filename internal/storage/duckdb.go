@@ -21,12 +21,12 @@ import (
 // It provides high-performance analytical queries and bulk insert capabilities
 // specifically optimized for OHLCV time-series data.
 type DuckDBStorage struct {
-	db       *sql.DB
-	dbPath   string
-	logger   *slog.Logger
-	mu       sync.RWMutex
-	stats    *StorageStats
-	statsMu  sync.RWMutex
+	db      *sql.DB
+	dbPath  string
+	logger  *slog.Logger
+	mu      sync.RWMutex
+	stats   *StorageStats
+	statsMu sync.RWMutex
 
 	// Performance tracking
 	queryTimes map[string][]time.Duration
@@ -184,7 +184,7 @@ func (d *DuckDBStorage) createIndexes(ctx context.Context) error {
 		"CREATE INDEX IF NOT EXISTS idx_candles_pair_interval ON candles (pair, interval)",
 		"CREATE INDEX IF NOT EXISTS idx_candles_timestamp ON candles (timestamp)",
 		"CREATE INDEX IF NOT EXISTS idx_candles_pair_timestamp ON candles (pair, timestamp)",
-		
+
 		// Gaps indexes for efficient gap management
 		"CREATE INDEX IF NOT EXISTS idx_gaps_pair_interval ON gaps (pair, interval)",
 		"CREATE INDEX IF NOT EXISTS idx_gaps_status ON gaps (status)",
@@ -230,7 +230,7 @@ func (d *DuckDBStorage) StoreBatch(ctx context.Context, candles []models.Candle)
 	d.mu.RLock()
 	db := d.db
 	d.mu.RUnlock()
-	
+
 	if db == nil {
 		return NewInsertError("candles", fmt.Errorf("database connection is closed"))
 	}
@@ -275,8 +275,8 @@ func (d *DuckDBStorage) StoreBatch(ctx context.Context, candles []models.Candle)
 		return NewInsertError("candles", fmt.Errorf("failed to flush appender: %w", err))
 	}
 
-	d.logger.Debug("stored candles batch", 
-		"count", len(candles), 
+	d.logger.Debug("stored candles batch",
+		"count", len(candles),
 		"duration", time.Since(start),
 		"rate_per_sec", float64(len(candles))/time.Since(start).Seconds())
 
@@ -363,8 +363,8 @@ func (d *DuckDBStorage) Query(ctx context.Context, req QueryRequest) (*QueryResp
 
 	// Build optimized query with proper indexing hints
 	query, args := d.buildQuery(req)
-	
-	d.logger.Debug("executing candles query", 
+
+	d.logger.Debug("executing candles query",
 		"pair", req.Pair,
 		"start", req.Start,
 		"end", req.End,
@@ -390,7 +390,7 @@ func (d *DuckDBStorage) Query(ctx context.Context, req QueryRequest) (*QueryResp
 		var candle models.Candle
 		var createdAt time.Time
 		var open, high, low, close, volume interface{}
-		
+
 		if err := rows.Scan(
 			&candle.Timestamp,
 			&open,
@@ -404,14 +404,14 @@ func (d *DuckDBStorage) Query(ctx context.Context, req QueryRequest) (*QueryResp
 		); err != nil {
 			return nil, NewQueryError("candles", query, fmt.Errorf("failed to scan row: %w", err))
 		}
-		
+
 		// Convert DuckDB decimal types to string
 		candle.Open = d.convertDecimalToString(open)
 		candle.High = d.convertDecimalToString(high)
 		candle.Low = d.convertDecimalToString(low)
 		candle.Close = d.convertDecimalToString(close)
 		candle.Volume = d.convertDecimalToString(volume)
-		
+
 		candles = append(candles, candle)
 	}
 
@@ -764,7 +764,7 @@ func (d *DuckDBStorage) DeleteGap(ctx context.Context, gapID string) error {
 	}()
 
 	query := "DELETE FROM gaps WHERE id = $1"
-	
+
 	result, err := d.db.ExecContext(ctx, query, gapID)
 	if err != nil {
 		return NewDeleteError("gaps", fmt.Errorf("failed to delete gap: %w", err))
@@ -997,7 +997,7 @@ func (d *DuckDBStorage) recordQueryTime(operation string, duration time.Duration
 	if len(times) >= 100 {
 		times = times[1:]
 	}
-	
+
 	d.queryTimes[operation] = append(times, duration)
 }
 

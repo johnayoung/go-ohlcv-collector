@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -62,40 +61,40 @@ var (
 	}{
 		Products: []coinbaseProduct{
 			{
-				ProductID:        "BTC-USD",
-				BaseCurrencyID:   "BTC",
-				QuoteCurrencyID:  "USD",
-				BaseIncrement:    "0.00000001",
-				QuoteIncrement:   "0.01",
-				BaseMinSize:      "0.00100000",
-				BaseMaxSize:      "10000.00000000",
-				QuoteMinSize:     "1.00",
-				QuoteMaxSize:     "1000000.00",
-				TradingDisabled:  false,
-				Status:           "online",
-				Price:            "47500.00",
-				Volume24h:        "1234.56789012",
-				MidMarketPrice:   "47500.00",
-				BaseName:         "Bitcoin",
-				QuoteName:        "US Dollar",
+				ProductID:       "BTC-USD",
+				BaseCurrencyID:  "BTC",
+				QuoteCurrencyID: "USD",
+				BaseIncrement:   "0.00000001",
+				QuoteIncrement:  "0.01",
+				BaseMinSize:     "0.00100000",
+				BaseMaxSize:     "10000.00000000",
+				QuoteMinSize:    "1.00",
+				QuoteMaxSize:    "1000000.00",
+				TradingDisabled: false,
+				Status:          "online",
+				Price:           "47500.00",
+				Volume24h:       "1234.56789012",
+				MidMarketPrice:  "47500.00",
+				BaseName:        "Bitcoin",
+				QuoteName:       "US Dollar",
 			},
 			{
-				ProductID:        "ETH-USD",
-				BaseCurrencyID:   "ETH",
-				QuoteCurrencyID:  "USD",
-				BaseIncrement:    "0.00000001",
-				QuoteIncrement:   "0.01",
-				BaseMinSize:      "0.00100000",
-				BaseMaxSize:      "5000.00000000",
-				QuoteMinSize:     "1.00",
-				QuoteMaxSize:     "500000.00",
-				TradingDisabled:  false,
-				Status:           "online",
-				Price:            "3500.00",
-				Volume24h:        "5678.90123456",
-				MidMarketPrice:   "3500.00",
-				BaseName:         "Ethereum",
-				QuoteName:        "US Dollar",
+				ProductID:       "ETH-USD",
+				BaseCurrencyID:  "ETH",
+				QuoteCurrencyID: "USD",
+				BaseIncrement:   "0.00000001",
+				QuoteIncrement:  "0.01",
+				BaseMinSize:     "0.00100000",
+				BaseMaxSize:     "5000.00000000",
+				QuoteMinSize:    "1.00",
+				QuoteMaxSize:    "500000.00",
+				TradingDisabled: false,
+				Status:          "online",
+				Price:           "3500.00",
+				Volume24h:       "5678.90123456",
+				MidMarketPrice:  "3500.00",
+				BaseName:        "Ethereum",
+				QuoteName:       "US Dollar",
 			},
 		},
 	}
@@ -165,7 +164,7 @@ func TestNewCoinbaseAdapter(t *testing.T) {
 
 func TestCoinbaseAdapter_FetchCandles(t *testing.T) {
 	ctx := context.Background()
-	
+
 	t.Run("fetches candles successfully", func(t *testing.T) {
 		server := createMockServer(map[string]func(w http.ResponseWriter, r *http.Request){
 			fmt.Sprintf("/api/v3/brokerage/products/%s/candles", btcUSDPair): func(w http.ResponseWriter, r *http.Request) {
@@ -174,7 +173,7 @@ func TestCoinbaseAdapter_FetchCandles(t *testing.T) {
 				assert.NotEmpty(t, query.Get("start"))
 				assert.NotEmpty(t, query.Get("end"))
 				assert.Equal(t, "3600", query.Get("granularity"))
-				
+
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(validCandlesResponse)
 			},
@@ -274,7 +273,7 @@ func TestCoinbaseAdapter_FetchCandles(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.GreaterOrEqual(t, elapsed, time.Second) // Should have waited
-		assert.Equal(t, 2, callCount) // Should have retried
+		assert.Equal(t, 2, callCount)                  // Should have retried
 	})
 
 	t.Run("handles server errors with retry", func(t *testing.T) {
@@ -518,9 +517,9 @@ func TestCoinbaseAdapter_FetchCandles(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, response)
 		// Should contain network-related error
-		assert.True(t, strings.Contains(err.Error(), "connection") || 
-			        strings.Contains(err.Error(), "network") ||
-			        strings.Contains(err.Error(), "EOF"))
+		assert.True(t, strings.Contains(err.Error(), "connection") ||
+			strings.Contains(err.Error(), "network") ||
+			strings.Contains(err.Error(), "EOF"))
 	})
 }
 
@@ -543,7 +542,7 @@ func TestCoinbaseAdapter_GetTradingPairs(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Len(t, pairs, 2)
-		
+
 		btcPair := pairs[0]
 		assert.Equal(t, "BTC-USD", btcPair.Symbol)
 		assert.Equal(t, "BTC", btcPair.BaseAsset)
@@ -749,17 +748,17 @@ func TestCoinbaseAdapter_RateLimit(t *testing.T) {
 
 	t.Run("WaitForLimit respects rate limiting", func(t *testing.T) {
 		adapter := NewCoinbaseAdapterWithLogger(createTestLogger())
-		
+
 		// Create a very restrictive rate limiter for testing
 		adapter.rateLimiter = rate.NewLimiter(1, 1) // 1 req/sec, burst of 1
 
 		ctx := context.Background()
-		
+
 		// First call should not wait
 		start := time.Now()
 		err1 := adapter.WaitForLimit(ctx)
 		elapsed1 := time.Since(start)
-		
+
 		require.NoError(t, err1)
 		assert.Less(t, elapsed1, 100*time.Millisecond)
 
@@ -767,7 +766,7 @@ func TestCoinbaseAdapter_RateLimit(t *testing.T) {
 		start = time.Now()
 		err2 := adapter.WaitForLimit(ctx)
 		elapsed2 := time.Since(start)
-		
+
 		require.NoError(t, err2)
 		assert.GreaterOrEqual(t, elapsed2, 900*time.Millisecond) // Should wait ~1 second
 	})
@@ -809,7 +808,7 @@ func TestCoinbaseAdapter_HealthCheck(t *testing.T) {
 				// Verify limit parameter is present
 				query := r.URL.Query()
 				assert.Equal(t, "1", query.Get("limit"))
-				
+
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(struct {
 					Products []coinbaseProduct `json:"products"`
@@ -966,13 +965,13 @@ func TestCoinbaseAdapter_ProductConversion(t *testing.T) {
 
 	t.Run("converts valid product data", func(t *testing.T) {
 		product := coinbaseProduct{
-			ProductID:        "BTC-USD",
-			BaseCurrencyID:   "BTC",
-			QuoteCurrencyID:  "USD",
-			BaseMinSize:      "0.001",
-			BaseMaxSize:      "10000.0",
-			QuoteIncrement:   "0.01",
-			TradingDisabled:  false,
+			ProductID:       "BTC-USD",
+			BaseCurrencyID:  "BTC",
+			QuoteCurrencyID: "USD",
+			BaseMinSize:     "0.001",
+			BaseMaxSize:     "10000.0",
+			QuoteIncrement:  "0.01",
+			TradingDisabled: false,
 		}
 
 		pair := adapter.convertProductToTradingPair(product)
@@ -988,10 +987,10 @@ func TestCoinbaseAdapter_ProductConversion(t *testing.T) {
 
 	t.Run("handles disabled trading pairs", func(t *testing.T) {
 		product := coinbaseProduct{
-			ProductID:        "OLD-PAIR",
-			BaseCurrencyID:   "OLD",
-			QuoteCurrencyID:  "USD",
-			TradingDisabled:  true,
+			ProductID:       "OLD-PAIR",
+			BaseCurrencyID:  "OLD",
+			QuoteCurrencyID: "USD",
+			TradingDisabled: true,
 		}
 
 		pair := adapter.convertProductToTradingPair(product)
@@ -1039,12 +1038,12 @@ func TestCoinbaseAdapter_ChunkCalculation(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Greater(t, len(chunks), 1)
-		
+
 		// Verify chunks are contiguous
 		for i := 1; i < len(chunks); i++ {
 			assert.Equal(t, chunks[i-1].end, chunks[i].start)
 		}
-		
+
 		// Verify first and last chunks
 		assert.Equal(t, start, chunks[0].start)
 		assert.Equal(t, end, chunks[len(chunks)-1].end)
@@ -1058,14 +1057,14 @@ func TestCoinbaseAdapter_ChunkCalculation(t *testing.T) {
 		chunks, err := adapter.calculateChunks(start, end, 3600, limit)
 
 		require.NoError(t, err)
-		
+
 		// Calculate total candles across all chunks
 		totalCandles := 0
 		for _, chunk := range chunks {
 			candlesInChunk := int(chunk.end.Sub(chunk.start) / (3600 * time.Second))
 			totalCandles += candlesInChunk
 		}
-		
+
 		assert.LessOrEqual(t, totalCandles, limit)
 	})
 
@@ -1112,7 +1111,7 @@ func TestCoinbaseAdapter_RetryAfterParsing(t *testing.T) {
 		{"empty header", "", 0},
 		{"numeric seconds", "120", 120 * time.Second},
 		{"invalid numeric", "invalid", 0},
-		{"HTTP date format", time.Now().Add(5*time.Second).Format(time.RFC1123), 4 * time.Second}, // Allow 1s variance
+		{"HTTP date format", time.Now().Add(5 * time.Second).Format(time.RFC1123), 4 * time.Second}, // Allow 1s variance
 		{"invalid date", "Invalid Date", 0},
 	}
 
@@ -1434,7 +1433,7 @@ func BenchmarkCoinbaseAdapter_FetchCandles(b *testing.B) {
 
 	adapter := NewCoinbaseAdapterWithLogger(createTestLogger())
 	adapter.baseURL = server.URL
-	
+
 	req := FetchRequest{
 		Pair:     btcUSDPair,
 		Start:    time.Unix(testTimestamp, 0),
@@ -1443,7 +1442,7 @@ func BenchmarkCoinbaseAdapter_FetchCandles(b *testing.B) {
 	}
 
 	ctx := context.Background()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := adapter.FetchCandles(ctx, req)
@@ -1467,7 +1466,7 @@ func BenchmarkCoinbaseAdapter_GetTradingPairs(b *testing.B) {
 	adapter.pairCacheTTL = 1 * time.Nanosecond // Force cache miss every time
 
 	ctx := context.Background()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := adapter.GetTradingPairs(ctx)

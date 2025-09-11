@@ -27,7 +27,7 @@ func TestCandleStorerContract(t *testing.T) {
 			test:        testStoreSingleCandle,
 		},
 		{
-			name:        "Store_MultipleCandles_Success", 
+			name:        "Store_MultipleCandles_Success",
 			description: "Should store multiple candles in sequence",
 			test:        testStoreMultipleCandles,
 		},
@@ -78,7 +78,7 @@ func TestCandleStorerContract(t *testing.T) {
 			// This will fail initially as no implementation exists
 			var storer contracts.CandleStorer
 			require.NotNil(t, storer, "CandleStorer implementation not provided - this is expected for TDD")
-			
+
 			t.Logf("Testing: %s", tc.description)
 			tc.test(t, storer)
 		})
@@ -154,13 +154,12 @@ func TestCandleReaderContract(t *testing.T) {
 			// This will fail initially as no implementation exists
 			var reader contracts.CandleReader
 			require.NotNil(t, reader, "CandleReader implementation not provided - this is expected for TDD")
-			
+
 			t.Logf("Testing: %s", tc.description)
 			tc.test(t, reader)
 		})
 	}
 }
-
 
 // TestStorageManagerContract tests the StorageManager interface contract
 func TestStorageManagerContract(t *testing.T) {
@@ -221,7 +220,7 @@ func TestStorageManagerContract(t *testing.T) {
 			// This will fail initially as no implementation exists
 			var manager contracts.StorageManager
 			require.NotNil(t, manager, "StorageManager implementation not provided - this is expected for TDD")
-			
+
 			t.Logf("Testing: %s", tc.description)
 			tc.test(t, manager)
 		})
@@ -239,7 +238,7 @@ func TestFullStorageIntegration(t *testing.T) {
 	t.Run("Integration_StoreAndQuery_DataConsistency", func(t *testing.T) {
 		// Test data flow: Store -> Query -> Validate consistency
 		testCandles := generateTestCandles(10)
-		
+
 		err := storage.StoreBatch(ctx, testCandles)
 		require.NoError(t, err)
 
@@ -283,7 +282,7 @@ func TestFullStorageIntegration(t *testing.T) {
 func testStoreSingleCandle(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
 	candle := generateTestCandles(1)[0]
-	
+
 	err := storer.Store(ctx, []contracts.Candle{candle})
 	assert.NoError(t, err)
 }
@@ -291,21 +290,21 @@ func testStoreSingleCandle(t *testing.T, storer contracts.CandleStorer) {
 func testStoreMultipleCandles(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
 	candles := generateTestCandles(5)
-	
+
 	err := storer.Store(ctx, candles)
 	assert.NoError(t, err)
 }
 
 func testStoreEmptySlice(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
-	
+
 	err := storer.Store(ctx, []contracts.Candle{})
 	assert.NoError(t, err)
 }
 
 func testStoreNilSlice(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
-	
+
 	err := storer.Store(ctx, nil)
 	assert.NoError(t, err)
 }
@@ -313,11 +312,11 @@ func testStoreNilSlice(t *testing.T, storer contracts.CandleStorer) {
 func testStoreDuplicateCandles(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
 	candle := generateTestCandles(1)[0]
-	
+
 	// Store same candle twice
 	err1 := storer.Store(ctx, []contracts.Candle{candle})
 	err2 := storer.Store(ctx, []contracts.Candle{candle})
-	
+
 	// Should either both succeed (upsert) or second should error (uniqueness)
 	if err1 == nil && err2 != nil {
 		assert.Error(t, err2, "Duplicate candle should be handled consistently")
@@ -340,7 +339,7 @@ func testStoreInvalidCandle(t *testing.T, storer contracts.CandleStorer) {
 		Pair:      "",
 		Interval:  "",
 	}
-	
+
 	err := storer.Store(ctx, []contracts.Candle{invalidCandle})
 	assert.Error(t, err, "Should reject invalid candle data")
 }
@@ -348,7 +347,7 @@ func testStoreInvalidCandle(t *testing.T, storer contracts.CandleStorer) {
 func testStoreContextCancellation(t *testing.T, storer contracts.CandleStorer) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
-	
+
 	candles := generateTestCandles(1)
 	err := storer.Store(ctx, candles)
 	assert.Error(t, err, "Should respect context cancellation")
@@ -357,43 +356,43 @@ func testStoreContextCancellation(t *testing.T, storer contracts.CandleStorer) {
 func testStoreBatchLarge(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
 	largeCandles := generateTestCandles(1000) // Large batch
-	
+
 	start := time.Now()
 	err := storer.StoreBatch(ctx, largeCandles)
 	duration := time.Since(start)
-	
+
 	assert.NoError(t, err)
 	assert.Less(t, duration, 5*time.Second, "Large batch should complete within reasonable time")
 }
 
 func testStoreBatchSizeLimits(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
-	
+
 	// Test extremely large batch
 	veryLargeCandles := generateTestCandles(10000)
 	err := storer.StoreBatch(ctx, veryLargeCandles)
-	
+
 	// Should either succeed or return a meaningful error about batch size
 	if err != nil {
-		assert.Contains(t, strings.ToLower(err.Error()), 
+		assert.Contains(t, strings.ToLower(err.Error()),
 			"batch", "Should provide meaningful error for oversized batches")
 	}
 }
 
 func testStoreBatchConcurrent(t *testing.T, storer contracts.CandleStorer) {
 	ctx := context.Background()
-	
+
 	// Run concurrent batch operations
 	const numRoutines = 5
 	errors := make(chan error, numRoutines)
-	
+
 	for i := 0; i < numRoutines; i++ {
 		go func(routineID int) {
 			candles := generateTestCandlesForPair(10, fmt.Sprintf("PAIR%d/USD", routineID))
 			errors <- storer.StoreBatch(ctx, candles)
 		}(i)
 	}
-	
+
 	// Collect results
 	for i := 0; i < numRoutines; i++ {
 		err := <-errors
@@ -411,7 +410,7 @@ func testQueryBasic(t *testing.T, reader contracts.CandleReader) {
 		Interval: "1h",
 		Limit:    100,
 	}
-	
+
 	resp, err := reader.Query(ctx, req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -427,16 +426,16 @@ func testQueryPerformance(t *testing.T, reader contracts.CandleReader) {
 		Interval: "1m",
 		Limit:    60,
 	}
-	
+
 	start := time.Now()
 	resp, err := reader.Query(ctx, req)
 	duration := time.Since(start)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Less(t, duration, 100*time.Millisecond, 
+	assert.Less(t, duration, 100*time.Millisecond,
 		"Query should complete within 100ms performance requirement")
-	
+
 	// Validate QueryTime is populated
 	assert.Greater(t, resp.QueryTime, time.Duration(0))
 	assert.LessOrEqual(t, resp.QueryTime, duration)
@@ -444,7 +443,7 @@ func testQueryPerformance(t *testing.T, reader contracts.CandleReader) {
 
 func testQueryPagination(t *testing.T, reader contracts.CandleReader) {
 	ctx := context.Background()
-	
+
 	// First page
 	req1 := contracts.QueryRequest{
 		Pair:     "BTC/USD",
@@ -454,18 +453,18 @@ func testQueryPagination(t *testing.T, reader contracts.CandleReader) {
 		Limit:    10,
 		Offset:   0,
 	}
-	
+
 	resp1, err := reader.Query(ctx, req1)
 	assert.NoError(t, err)
-	
+
 	if resp1.HasMore {
 		// Second page
 		req2 := req1
 		req2.Offset = resp1.NextOffset
-		
+
 		resp2, err := reader.Query(ctx, req2)
 		assert.NoError(t, err)
-		
+
 		// Validate pagination
 		assert.NotEqual(t, resp1.Candles, resp2.Candles, "Different pages should return different data")
 		assert.Equal(t, req2.Offset, resp1.NextOffset, "NextOffset should be consistent")
@@ -474,20 +473,20 @@ func testQueryPagination(t *testing.T, reader contracts.CandleReader) {
 
 func testQueryOrdering(t *testing.T, reader contracts.CandleReader) {
 	ctx := context.Background()
-	
+
 	// Test ascending order
 	reqAsc := contracts.QueryRequest{
-		Pair:     "BTC/USD", 
+		Pair:     "BTC/USD",
 		Start:    time.Now().Add(-24 * time.Hour),
 		End:      time.Now(),
 		Interval: "1h",
 		Limit:    10,
 		OrderBy:  "timestamp_asc",
 	}
-	
+
 	respAsc, err := reader.Query(ctx, reqAsc)
 	assert.NoError(t, err)
-	
+
 	if len(respAsc.Candles) > 1 {
 		// Validate ascending order
 		for i := 1; i < len(respAsc.Candles); i++ {
@@ -495,14 +494,14 @@ func testQueryOrdering(t *testing.T, reader contracts.CandleReader) {
 				"Ascending order should be maintained")
 		}
 	}
-	
+
 	// Test descending order
 	reqDesc := reqAsc
 	reqDesc.OrderBy = "timestamp_desc"
-	
+
 	respDesc, err := reader.Query(ctx, reqDesc)
 	assert.NoError(t, err)
-	
+
 	if len(respDesc.Candles) > 1 {
 		// Validate descending order
 		for i := 1; i < len(respDesc.Candles); i++ {
@@ -521,7 +520,7 @@ func testQueryEmptyResult(t *testing.T, reader contracts.CandleReader) {
 		Interval: "1m",
 		Limit:    100,
 	}
-	
+
 	resp, err := reader.Query(ctx, req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -539,7 +538,7 @@ func testQueryInvalidTimeRange(t *testing.T, reader contracts.CandleReader) {
 		Interval: "1h",
 		Limit:    100,
 	}
-	
+
 	_, err := reader.Query(ctx, req)
 	assert.Error(t, err, "Should reject invalid time range")
 }
@@ -553,7 +552,7 @@ func testQueryInvalidInterval(t *testing.T, reader contracts.CandleReader) {
 		Interval: "invalid_interval",
 		Limit:    100,
 	}
-	
+
 	_, err := reader.Query(ctx, req)
 	assert.Error(t, err, "Should reject invalid interval")
 }
@@ -567,11 +566,11 @@ func testQueryLargeResult(t *testing.T, reader contracts.CandleReader) {
 		Interval: "1m", // Large result set
 		Limit:    10000,
 	}
-	
+
 	start := time.Now()
 	resp, err := reader.Query(ctx, req)
 	duration := time.Since(start)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Less(t, duration, 1*time.Second, "Large queries should still be reasonably fast")
@@ -579,9 +578,9 @@ func testQueryLargeResult(t *testing.T, reader contracts.CandleReader) {
 
 func testGetLatestExisting(t *testing.T, reader contracts.CandleReader) {
 	ctx := context.Background()
-	
+
 	candle, err := reader.GetLatest(ctx, "BTC/USD", "1h")
-	
+
 	if err == nil {
 		assert.NotNil(t, candle)
 		assert.Equal(t, "BTC/USD", candle.Pair)
@@ -595,7 +594,7 @@ func testGetLatestExisting(t *testing.T, reader contracts.CandleReader) {
 
 func testGetLatestNonExistent(t *testing.T, reader contracts.CandleReader) {
 	ctx := context.Background()
-	
+
 	candle, err := reader.GetLatest(ctx, "NONEXISTENT/PAIR", "1h")
 	assert.Nil(t, candle)
 	assert.Error(t, err, "Should return error for non-existent pair")
@@ -603,36 +602,35 @@ func testGetLatestNonExistent(t *testing.T, reader contracts.CandleReader) {
 
 func testGetLatestPerformance(t *testing.T, reader contracts.CandleReader) {
 	ctx := context.Background()
-	
+
 	start := time.Now()
 	_, err := reader.GetLatest(ctx, "BTC/USD", "1h")
 	duration := time.Since(start)
-	
+
 	// Should be very fast regardless of success/failure
 	assert.Less(t, duration, 50*time.Millisecond, "GetLatest should be very fast")
-	
+
 	// Error is acceptable if no data exists
 	if err != nil {
 		t.Logf("GetLatest returned error (acceptable for empty storage): %v", err)
 	}
 }
 
-
 // StorageManager test implementations
 func testInitializeFresh(t *testing.T, manager contracts.StorageManager) {
 	ctx := context.Background()
-	
+
 	err := manager.Initialize(ctx)
 	assert.NoError(t, err)
 }
 
 func testInitializeExisting(t *testing.T, manager contracts.StorageManager) {
 	ctx := context.Background()
-	
+
 	// Initialize twice - should handle existing storage gracefully
 	err1 := manager.Initialize(ctx)
 	err2 := manager.Initialize(ctx)
-	
+
 	assert.NoError(t, err1)
 	assert.NoError(t, err2, "Should handle existing storage initialization")
 }
@@ -645,32 +643,32 @@ func testCloseActive(t *testing.T, manager contracts.StorageManager) {
 func testCloseAlreadyClosed(t *testing.T, manager contracts.StorageManager) {
 	err1 := manager.Close()
 	err2 := manager.Close() // Close twice
-	
+
 	assert.NoError(t, err1)
 	assert.NoError(t, err2, "Should handle multiple close calls gracefully")
 }
 
 func testMigrateValid(t *testing.T, manager contracts.StorageManager) {
 	ctx := context.Background()
-	
+
 	err := manager.Migrate(ctx, 1) // Valid version
 	assert.NoError(t, err)
 }
 
 func testMigrateInvalid(t *testing.T, manager contracts.StorageManager) {
 	ctx := context.Background()
-	
+
 	err := manager.Migrate(ctx, -1) // Invalid version
 	assert.Error(t, err, "Should reject invalid migration version")
 }
 
 func testGetStatsActive(t *testing.T, manager contracts.StorageManager) {
 	ctx := context.Background()
-	
+
 	stats, err := manager.GetStats(ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, stats)
-	
+
 	// Validate stats structure
 	assert.GreaterOrEqual(t, stats.TotalCandles, int64(0))
 	assert.GreaterOrEqual(t, stats.TotalPairs, 0)
@@ -681,7 +679,7 @@ func testGetStatsActive(t *testing.T, manager contracts.StorageManager) {
 
 func testHealthCheckHealthy(t *testing.T, manager contracts.StorageManager) {
 	ctx := context.Background()
-	
+
 	err := manager.HealthCheck(ctx)
 	// Should either pass or provide meaningful error
 	if err != nil {
@@ -693,7 +691,7 @@ func testHealthCheckUnhealthy(t *testing.T, manager contracts.StorageManager) {
 	// Use cancelled context to simulate unhealthy state
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	
+
 	err := manager.HealthCheck(ctx)
 	assert.Error(t, err, "Should fail health check with cancelled context")
 }
@@ -706,20 +704,20 @@ func generateTestCandles(count int) []contracts.Candle {
 func generateTestCandlesForPair(count int, pair string) []contracts.Candle {
 	candles := make([]contracts.Candle, count)
 	baseTime := time.Now().Add(-time.Duration(count) * time.Hour)
-	
+
 	for i := 0; i < count; i++ {
 		candles[i] = contracts.Candle{
 			Timestamp: baseTime.Add(time.Duration(i) * time.Hour),
 			Open:      "50000.00",
 			High:      "51000.00",
-			Low:       "49000.00", 
+			Low:       "49000.00",
 			Close:     "50500.00",
 			Volume:    "100.5",
 			Pair:      pair,
 			Interval:  "1h",
 		}
 	}
-	
+
 	return candles
 }
 
@@ -730,13 +728,13 @@ func BenchmarkStorageOperations(b *testing.B) {
 	if storage == nil {
 		b.Skip("FullStorage implementation not provided - this is expected for TDD")
 	}
-	
+
 	ctx := context.Background()
-	
+
 	b.Run("StoreBatch", func(b *testing.B) {
 		candles := generateTestCandles(100)
 		b.ResetTimer()
-		
+
 		for i := 0; i < b.N; i++ {
 			err := storage.StoreBatch(ctx, candles)
 			if err != nil {
@@ -744,7 +742,7 @@ func BenchmarkStorageOperations(b *testing.B) {
 			}
 		}
 	})
-	
+
 	b.Run("Query", func(b *testing.B) {
 		req := contracts.QueryRequest{
 			Pair:     "BTC/USD",
@@ -754,7 +752,7 @@ func BenchmarkStorageOperations(b *testing.B) {
 			Limit:    100,
 		}
 		b.ResetTimer()
-		
+
 		for i := 0; i < b.N; i++ {
 			_, err := storage.Query(ctx, req)
 			if err != nil {
@@ -762,10 +760,10 @@ func BenchmarkStorageOperations(b *testing.B) {
 			}
 		}
 	})
-	
+
 	b.Run("GetLatest", func(b *testing.B) {
 		b.ResetTimer()
-		
+
 		for i := 0; i < b.N; i++ {
 			_, err := storage.GetLatest(ctx, "BTC/USD", "1h")
 			if err != nil && !errors.Is(err, context.Canceled) {

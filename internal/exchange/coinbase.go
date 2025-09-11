@@ -318,7 +318,7 @@ func (c *CoinbaseAdapter) HealthCheck(ctx context.Context) error {
 // Used internally to split large time ranges into manageable API requests.
 type timeChunk struct {
 	start time.Time // start is the beginning of the time chunk (inclusive)
-	end   time.Time   // end is the end of the time chunk (exclusive)
+	end   time.Time // end is the end of the time chunk (exclusive)
 }
 
 // calculateChunks splits a large time range into smaller chunks that respect Coinbase API limits.

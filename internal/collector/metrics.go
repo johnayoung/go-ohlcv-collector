@@ -11,11 +11,11 @@ import (
 // metricsCollector tracks collection performance and statistics
 type metricsCollector struct {
 	// Atomic counters for thread-safe updates
-	candlesCollected   int64
-	errorCount         int64
-	successCount       int64
-	rateLimitHits      int64
-	candlesStored      int64
+	candlesCollected int64
+	errorCount       int64
+	successCount     int64
+	rateLimitHits    int64
+	candlesStored    int64
 
 	// Response time tracking
 	totalResponseTime int64 // nanoseconds
@@ -131,7 +131,7 @@ func (m *metricsCollector) getValidationStats() *ValidationStats {
 	for _, result := range m.validationResults {
 		totalValidated += result.ProcessedCandles
 		validationErrors += result.InvalidCandles
-		
+
 		if result.QualityMetrics != nil {
 			anomaliesDetected += result.QualityMetrics.AnomaliesDetected
 			qualityScores = append(qualityScores, result.QualityMetrics.QualityScore)

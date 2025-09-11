@@ -299,12 +299,12 @@ type GapManagerConfig struct {
 // PriorityThresholds defines criteria for gap priority calculation
 type PriorityThresholds struct {
 	// Critical priority thresholds
-	CriticalAgeDuration     time.Duration // Gaps older than this are critical
-	CriticalGapDuration     time.Duration // Gaps longer than this are critical
+	CriticalAgeDuration time.Duration // Gaps older than this are critical
+	CriticalGapDuration time.Duration // Gaps longer than this are critical
 
 	// High priority thresholds
-	HighAgeDuration     time.Duration // Gaps older than this are high priority
-	HighGapDuration     time.Duration // Gaps longer than this are high priority
+	HighAgeDuration time.Duration // Gaps older than this are high priority
+	HighGapDuration time.Duration // Gaps longer than this are high priority
 
 	// Low priority threshold
 	RecentGapThreshold time.Duration // Very recent gaps get low priority

@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"log/slog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"log/slog"
 )
 
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
-	
+
 	assert.Equal(t, "ohlcv-collector", config.AppName)
 	assert.Equal(t, "1.0.0", config.Version)
 	assert.Equal(t, "duckdb", config.Storage.Type)
@@ -31,7 +31,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestConfigValidation(t *testing.T) {
 	logger := slog.Default()
 	cm := NewConfigManager("", logger)
-	
+
 	t.Run("valid config passes validation", func(t *testing.T) {
 		config := DefaultConfig()
 		err := cm.validateConfig(config)
@@ -85,12 +85,12 @@ func TestConfigValidation(t *testing.T) {
 		err := cm.validateConfig(config)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "scheduler.interval is required")
-		
+
 		config.Scheduler.Interval = "invalid-duration"
 		err = cm.validateConfig(config)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "scheduler.interval is not a valid duration")
-		
+
 		config.Scheduler.Interval = "1h"
 		config.Scheduler.MaxConcurrentJobs = 0
 		err = cm.validateConfig(config)
@@ -121,7 +121,7 @@ func TestConfigValidation(t *testing.T) {
 		err := cm.validateConfig(config)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "metrics.port must be between 1 and 65535")
-		
+
 		config.Metrics.Port = 70000
 		err = cm.validateConfig(config)
 		assert.Error(t, err)
@@ -168,7 +168,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 		ctx := context.Background()
 		loadedConfig, err := cm.LoadConfig(ctx)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, "test-app", loadedConfig.AppName)
 		assert.Equal(t, "2.0.0", loadedConfig.Version)
 		assert.Equal(t, "memory", loadedConfig.Storage.Type)
@@ -184,7 +184,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 	t.Run("handles invalid json file", func(t *testing.T) {
 		invalidPath := filepath.Join(tempDir, "invalid.json")
 		require.NoError(t, os.WriteFile(invalidPath, []byte("invalid json"), 0644))
-		
+
 		cm := NewConfigManager(invalidPath, logger)
 		ctx := context.Background()
 		_, err := cm.LoadConfig(ctx)
@@ -195,7 +195,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 	t.Run("handles non-existent file gracefully", func(t *testing.T) {
 		nonExistentPath := filepath.Join(tempDir, "does_not_exist.json")
 		cm := NewConfigManager(nonExistentPath, logger)
-		
+
 		ctx := context.Background()
 		config, err := cm.LoadConfig(ctx)
 		assert.NoError(t, err)
@@ -244,7 +244,7 @@ func TestLoadConfigFromEnvironment(t *testing.T) {
 		config := DefaultConfig()
 		err := cm.loadFromEnv(config)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, "env-test-app", config.AppName)
 		assert.Equal(t, "3.0.0", config.Version)
 		assert.Equal(t, "postgresql", config.Storage.Type)
@@ -271,10 +271,10 @@ func TestLoadConfigFromEnvironment(t *testing.T) {
 
 	t.Run("handles invalid numeric values", func(t *testing.T) {
 		t.Setenv("BATCH_SIZE", "not-a-number")
-		
+
 		config := DefaultConfig()
 		originalBatchSize := config.Storage.BatchSize
-		
+
 		err := cm.loadFromEnv(config)
 		assert.NoError(t, err) // Should not error, but should keep original value
 		assert.Equal(t, originalBatchSize, config.Storage.BatchSize)
@@ -299,11 +299,11 @@ func TestSaveConfig(t *testing.T) {
 		// Verify file was created and contains expected data
 		data, err := os.ReadFile(configPath)
 		require.NoError(t, err)
-		
+
 		var savedConfig AppConfig
 		err = json.Unmarshal(data, &savedConfig)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, "saved-config-test", savedConfig.AppName)
 		assert.Equal(t, "4.0.0", savedConfig.Version)
 	})
@@ -312,11 +312,11 @@ func TestSaveConfig(t *testing.T) {
 		nestedPath := filepath.Join(tempDir, "nested", "dir", "config.json")
 		cm := NewConfigManager(nestedPath, logger)
 		cm.config = DefaultConfig()
-		
+
 		ctx := context.Background()
 		err := cm.SaveConfig(ctx)
 		assert.NoError(t, err)
-		
+
 		// Verify directory was created
 		assert.FileExists(t, nestedPath)
 	})
@@ -324,7 +324,7 @@ func TestSaveConfig(t *testing.T) {
 	t.Run("fails when no config path specified", func(t *testing.T) {
 		cm := NewConfigManager("", logger)
 		cm.config = DefaultConfig()
-		
+
 		ctx := context.Background()
 		err := cm.SaveConfig(ctx)
 		assert.Error(t, err)
@@ -382,12 +382,12 @@ func TestConfigString(t *testing.T) {
 	config.Exchange.APISecret = "secret-value"
 
 	configStr := config.String()
-	
+
 	// Should contain most config values
 	assert.Contains(t, configStr, "ohlcv-collector")
 	assert.Contains(t, configStr, "duckdb")
 	assert.Contains(t, configStr, "coinbase")
-	
+
 	// Should redact sensitive information
 	assert.Contains(t, configStr, "[REDACTED]")
 	assert.NotContains(t, configStr, "secret-key")
@@ -435,7 +435,7 @@ func TestConfigWatchers(t *testing.T) {
 	t.Run("handles watcher errors", func(t *testing.T) {
 		cm := NewConfigManager("", logger)
 		cm.config = DefaultConfig()
-		
+
 		errorWatcher := &mockConfigWatcher{shouldError: true}
 		cm.RegisterWatcher(errorWatcher)
 
@@ -493,12 +493,12 @@ func TestCompleteConfigFlow(t *testing.T) {
 		assert.Equal(t, 5, config.Exchange.RateLimit)
 
 		// Values overridden by environment
-		assert.Equal(t, "duckdb", config.Storage.Type) // overridden from "memory"
+		assert.Equal(t, "duckdb", config.Storage.Type)           // overridden from "memory"
 		assert.Equal(t, "./test.db", config.Storage.DatabaseURL) // overridden
-		assert.Equal(t, 2000, config.Storage.BatchSize) // overridden from 100
-		assert.Equal(t, 8, config.Collector.WorkerCount) // overridden
-		assert.Equal(t, "debug", config.Logging.Level) // overridden from default "info"
-		assert.Equal(t, "json", config.Logging.Format) // overridden
+		assert.Equal(t, 2000, config.Storage.BatchSize)          // overridden from 100
+		assert.Equal(t, 8, config.Collector.WorkerCount)         // overridden
+		assert.Equal(t, "debug", config.Logging.Level)           // overridden from default "info"
+		assert.Equal(t, "json", config.Logging.Format)           // overridden
 
 		// Default values for unspecified fields
 		assert.True(t, config.Metrics.Enabled) // default value

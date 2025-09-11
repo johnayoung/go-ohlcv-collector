@@ -31,17 +31,17 @@ type GapDetectorImpl struct {
 // BackfillerImpl implements the Backfiller interface with automatic
 // backfill capabilities including priority ordering and concurrent processing.
 type BackfillerImpl struct {
-	storage          storage.FullStorage
-	exchange         contracts.ExchangeAdapter
-	logger           *slog.Logger
-	isRunning        bool
-	activeFills      map[string]bool
-	maxConcurrent    int
-	retryAttempts    int
-	retryDelay       time.Duration
-	mu               sync.RWMutex
-	fillWg           sync.WaitGroup
-	metrics          *BackfillMetrics
+	storage       storage.FullStorage
+	exchange      contracts.ExchangeAdapter
+	logger        *slog.Logger
+	isRunning     bool
+	activeFills   map[string]bool
+	maxConcurrent int
+	retryAttempts int
+	retryDelay    time.Duration
+	mu            sync.RWMutex
+	fillWg        sync.WaitGroup
+	metrics       *BackfillMetrics
 }
 
 // GapManagerImpl implements the GapManager interface providing high-level
@@ -59,7 +59,7 @@ type GapManagerImpl struct {
 
 // BackfillMetrics tracks performance and operational metrics for backfill operations.
 type BackfillMetrics struct {
-	TotalGapsProcessed   int64
+	TotalGapsProcessed  int64
 	GapsFilled          int64
 	GapsFailed          int64
 	GapsMarkedPermanent int64
@@ -511,15 +511,15 @@ func (bf *BackfillerImpl) GetBackfillProgress(ctx context.Context) (*BackfillSta
 	}
 
 	return &BackfillStatus{
-		Active:         bf.isRunning,
-		ActiveGaps:     len(fillingGaps),
-		QueuedGaps:     len(detectedGaps),
-		CompletedGaps:  int(metrics.GapsFilled),
-		FailedGaps:     int(metrics.GapsFailed),
-		StartTime:      time.Time{}, // Would be set when backfill session starts
-		LastActivity:   metrics.LastBackfillRun,
-		ErrorCount:     int(metrics.GapsFailed),
-		SuccessRate:    successRate,
+		Active:        bf.isRunning,
+		ActiveGaps:    len(fillingGaps),
+		QueuedGaps:    len(detectedGaps),
+		CompletedGaps: int(metrics.GapsFilled),
+		FailedGaps:    int(metrics.GapsFailed),
+		StartTime:     time.Time{}, // Would be set when backfill session starts
+		LastActivity:  metrics.LastBackfillRun,
+		ErrorCount:    int(metrics.GapsFailed),
+		SuccessRate:   successRate,
 	}, nil
 }
 
@@ -652,14 +652,14 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 	}
 
 	return &GapStatistics{
-		TotalGaps:        totalGaps,
-		ActiveGaps:       len(detectedGaps),
-		FilledGaps:       len(filledGaps),
-		PermanentGaps:    len(permanentGaps),
-		GapsByStatus:     gapsByStatus,
-		GapsByPriority:   make(map[models.GapPriority]int),
-		GapsByPair:       make(map[string]int),
-		SuccessRate:      successRate,
+		TotalGaps:      totalGaps,
+		ActiveGaps:     len(detectedGaps),
+		FilledGaps:     len(filledGaps),
+		PermanentGaps:  len(permanentGaps),
+		GapsByStatus:   gapsByStatus,
+		GapsByPriority: make(map[models.GapPriority]int),
+		GapsByPair:     make(map[string]int),
+		SuccessRate:    successRate,
 	}, nil
 }
 
@@ -681,7 +681,7 @@ func (gm *GapManagerImpl) PrioritizeGaps(ctx context.Context) (int, error) {
 // CleanupCompletedGaps removes old completed gaps from storage.
 func (gm *GapManagerImpl) CleanupCompletedGaps(ctx context.Context, retentionPeriod time.Duration) (int, error) {
 	cutoffTime := time.Now().UTC().Add(-retentionPeriod)
-	
+
 	// This would need to be implemented with a proper cleanup query
 	// For now, return 0 as no gaps were cleaned up
 	cleanedCount := 0
@@ -845,7 +845,7 @@ func (bf *BackfillerImpl) processGapsConcurrently(ctx context.Context, gaps []mo
 	}()
 
 	semaphore := make(chan struct{}, bf.maxConcurrent)
-	
+
 	for _, gap := range gaps {
 		if !bf.isRunning {
 			break
@@ -1046,4 +1046,3 @@ func generateGapID(pair string, startTime, endTime time.Time, interval string) s
 	idStr = strings.ReplaceAll(idStr, " ", "_")
 	return idStr
 }
-

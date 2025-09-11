@@ -43,9 +43,9 @@ type MemoryStorage struct {
 // NewMemoryStorage creates a new in-memory storage instance.
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
-		candles:   make(map[string]map[string]map[time.Time]*models.Candle),
-		gaps:      make(map[string]*models.Gap),
-		gapIndex:  make(map[string]map[string][]string),
+		candles:  make(map[string]map[string]map[time.Time]*models.Candle),
+		gaps:     make(map[string]*models.Gap),
+		gapIndex: make(map[string]map[string][]string),
 		stats: &StorageStats{
 			QueryPerformance: make(map[string]time.Duration),
 		},

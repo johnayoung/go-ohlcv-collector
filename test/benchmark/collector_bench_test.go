@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func BenchmarkCollectorThroughput(b *testing.B) {
 
 	// Setup in-memory storage for testing
 	memStorage := storage.NewMemoryStorage(slog.Default())
-	
+
 	// Create mock exchange adapter
 	exchange := &MockExchangeAdapter{
 		candleData: generateTestCandles(10000), // Pre-generate test data
@@ -67,9 +68,9 @@ func BenchmarkCollectorThroughput(b *testing.B) {
 	totalCandles := int64(b.N) * 24 // 24 hours of hourly data
 	duration := time.Since(time.Now().Add(-time.Duration(b.Elapsed())))
 	throughput := float64(totalCandles) / b.Elapsed().Seconds()
-	
+
 	b.ReportMetric(throughput, "candles/sec")
-	
+
 	// Verify we meet the performance target
 	if throughput < 1000 {
 		b.Errorf("Throughput %0.2f candles/sec below target of 1000 candles/sec", throughput)
@@ -130,11 +131,11 @@ func benchmarkStorageWrites(b *testing.B, storage interface{}) {
 
 	// Generate test data
 	testCandles := generateTestCandles(1000)
-	
+
 	b.Run("BulkWrites", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		
+
 		for i := 0; i < b.N; i++ {
 			ctx := context.Background()
 			err := storer.StoreBatch(ctx, testCandles)
@@ -142,7 +143,7 @@ func benchmarkStorageWrites(b *testing.B, storage interface{}) {
 				b.Fatalf("Bulk write failed: %v", err)
 			}
 		}
-		
+
 		// Calculate write throughput
 		totalCandles := int64(b.N) * int64(len(testCandles))
 		throughput := float64(totalCandles) / b.Elapsed().Seconds()
@@ -205,7 +206,7 @@ func benchmarkStorageReads(b *testing.B, storage interface{}) {
 		b.Run(qt.name, func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
-			
+
 			for i := 0; i < b.N; i++ {
 				resp, err := reader.Query(ctx, qt.req)
 				if err != nil {
@@ -215,13 +216,13 @@ func benchmarkStorageReads(b *testing.B, storage interface{}) {
 					b.Fatalf("Nil response")
 				}
 			}
-			
+
 			// Verify response time is under target
 			avgResponseTime := b.Elapsed() / time.Duration(b.N)
 			if avgResponseTime > 100*time.Millisecond {
 				b.Errorf("Average response time %v exceeds 100ms target", avgResponseTime)
 			}
-			
+
 			b.ReportMetric(float64(avgResponseTime.Nanoseconds())/1e6, "ms/query")
 		})
 	}
@@ -235,7 +236,7 @@ func BenchmarkConcurrentCollection(b *testing.B) {
 	}
 
 	workerCounts := []int{1, 2, 4, 8, 16}
-	
+
 	for _, workers := range workerCounts {
 		b.Run(fmt.Sprintf("Workers_%d", workers), func(b *testing.B) {
 			benchmarkConcurrentCollectionWithWorkers(b, workers)
@@ -271,7 +272,7 @@ func benchmarkConcurrentCollectionWithWorkers(b *testing.B, workerCount int) {
 	for i := 0; i < b.N; i++ {
 		var wg sync.WaitGroup
 		ctx := context.Background()
-		
+
 		// Collect data for multiple pairs concurrently
 		for _, pair := range pairs {
 			wg.Add(1)
@@ -283,7 +284,7 @@ func benchmarkConcurrentCollectionWithWorkers(b *testing.B, workerCount int) {
 				}
 			}(pair)
 		}
-		
+
 		wg.Wait()
 	}
 
@@ -328,16 +329,16 @@ func BenchmarkMemoryUsage(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ctx := context.Background()
 		pairs := []string{"BTC-USD", "ETH-USD", "LTC-USD"}
-		
+
 		for _, pair := range pairs {
-			_, err := c.CollectHistoricalData(ctx, pair, "1h", 
+			_, err := c.CollectHistoricalData(ctx, pair, "1h",
 				time.Now().Add(-168*time.Hour), // 1 week
 				time.Now())
 			if err != nil {
 				b.Fatalf("Collection failed: %v", err)
 			}
 		}
-		
+
 		// Force GC to get accurate memory measurement
 		if i%10 == 0 {
 			runtime.GC()
@@ -345,7 +346,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 	}
 
 	b.StopTimer()
-	
+
 	// Measure final memory usage
 	runtime.GC()
 	runtime.GC()
@@ -354,7 +355,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 	// Calculate memory usage
 	allocatedMB := float64(endMemStats.HeapAlloc-startMemStats.HeapAlloc) / (1024 * 1024)
 	systemMB := float64(endMemStats.HeapSys-startMemStats.HeapSys) / (1024 * 1024)
-	
+
 	b.ReportMetric(allocatedMB, "MB_allocated")
 	b.ReportMetric(systemMB, "MB_system")
 
@@ -391,7 +392,7 @@ func BenchmarkValidationPerformance(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
-			
+
 			for i := 0; i < b.N; i++ {
 				validCount := 0
 				for _, candle := range bm.candles {
@@ -402,7 +403,7 @@ func BenchmarkValidationPerformance(b *testing.B) {
 				// Prevent compiler optimization
 				_ = validCount
 			}
-			
+
 			throughput := float64(len(bm.candles)*b.N) / b.Elapsed().Seconds()
 			b.ReportMetric(throughput, "validations/sec")
 		})
@@ -436,7 +437,7 @@ func BenchmarkSchedulerPerformance(b *testing.B) {
 	scheduler := collector.NewScheduler(c, cfg)
 
 	ctx := context.Background()
-	
+
 	// Start scheduler
 	if err := scheduler.Start(ctx); err != nil {
 		b.Fatalf("Failed to start scheduler: %v", err)
@@ -451,14 +452,14 @@ func BenchmarkSchedulerPerformance(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var wg sync.WaitGroup
-		
+
 		// Schedule multiple jobs concurrently
 		for _, pair := range pairs {
 			for _, interval := range intervals {
 				wg.Add(1)
 				go func(p, intv string) {
 					defer wg.Done()
-					
+
 					job := &collector.CollectionJob{
 						Pair:      p,
 						Interval:  intv,
@@ -466,16 +467,16 @@ func BenchmarkSchedulerPerformance(b *testing.B) {
 						EndTime:   time.Now(),
 						Priority:  1,
 					}
-					
+
 					if err := scheduler.ScheduleJob(ctx, job); err != nil {
 						b.Errorf("Failed to schedule job: %v", err)
 					}
 				}(pair, interval)
 			}
 		}
-		
+
 		wg.Wait()
-		
+
 		// Wait for jobs to complete
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -493,21 +494,21 @@ func generateTestCandles(count int) []models.Candle {
 	candles := make([]models.Candle, count)
 	basePrice := decimal.NewFromFloat(50000.0) // Starting at $50,000
 	baseTime := time.Now().Add(-time.Duration(count) * time.Hour)
-	
+
 	for i := 0; i < count; i++ {
 		// Generate realistic price movement
 		change := decimal.NewFromFloat((float64(i%100) - 50) * 0.01) // ±0.5% change
 		open := basePrice.Add(change)
-		
+
 		// Generate OHLC with realistic relationships
-		highChange := decimal.NewFromFloat(float64(i%20) * 0.001)  // 0-2% higher
-		lowChange := decimal.NewFromFloat(float64(i%15) * -0.001)   // 0-1.5% lower
+		highChange := decimal.NewFromFloat(float64(i%20) * 0.001)         // 0-2% higher
+		lowChange := decimal.NewFromFloat(float64(i%15) * -0.001)         // 0-1.5% lower
 		closeChange := decimal.NewFromFloat((float64(i%30) - 15) * 0.002) // ±3% from open
-		
+
 		high := open.Add(highChange)
 		low := open.Add(lowChange)
 		close := open.Add(closeChange)
-		
+
 		// Ensure OHLC relationships
 		if high.LessThan(open) || high.LessThan(close) {
 			if open.GreaterThan(close) {
@@ -516,7 +517,7 @@ func generateTestCandles(count int) []models.Candle {
 				high = close
 			}
 		}
-		
+
 		if low.GreaterThan(open) || low.GreaterThan(close) {
 			if open.LessThan(close) {
 				low = open
@@ -524,9 +525,9 @@ func generateTestCandles(count int) []models.Candle {
 				low = close
 			}
 		}
-		
+
 		volume := decimal.NewFromFloat(float64(1000 + i%5000)) // Random volume
-		
+
 		candles[i] = models.Candle{
 			Timestamp: baseTime.Add(time.Duration(i) * time.Hour),
 			Open:      open.String(),
@@ -537,10 +538,10 @@ func generateTestCandles(count int) []models.Candle {
 			Pair:      "BTC-USD",
 			Interval:  "1h",
 		}
-		
+
 		basePrice = close // Next candle starts where this one ended
 	}
-	
+
 	return candles
 }
 
@@ -548,7 +549,7 @@ func generateTestCandles(count int) []models.Candle {
 func generateInvalidCandles(count int) []models.Candle {
 	candles := make([]models.Candle, count)
 	baseTime := time.Now().Add(-time.Duration(count) * time.Hour)
-	
+
 	for i := 0; i < count; i++ {
 		// Create various types of invalid candles
 		switch i % 5 {
@@ -609,12 +610,9 @@ func generateInvalidCandles(count int) []models.Candle {
 			}
 		}
 	}
-	
+
 	return candles
 }
-
-// Import runtime for memory benchmarks
-import "runtime"
 
 // MockExchangeAdapter for benchmark testing
 type MockExchangeAdapter struct {
@@ -627,10 +625,10 @@ func (m *MockExchangeAdapter) FetchHistoricalData(ctx context.Context, pair, int
 	if m.delay > 0 {
 		time.Sleep(m.delay)
 	}
-	
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// Return subset of test data
 	result := make([]models.Candle, 0, len(m.candleData))
 	for _, candle := range m.candleData {
@@ -640,7 +638,7 @@ func (m *MockExchangeAdapter) FetchHistoricalData(ctx context.Context, pair, int
 			result = append(result, candle)
 		}
 	}
-	
+
 	return result, nil
 }
 

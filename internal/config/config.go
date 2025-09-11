@@ -60,14 +60,14 @@ type StorageConfig struct {
 
 // ExchangeConfig configures exchange adapters
 type ExchangeConfig struct {
-	Type         string                 `json:"type" env:"EXCHANGE_TYPE"`           // "coinbase", "mock"
-	APIKey       string                 `json:"api_key" env:"API_KEY"`              // API key for authenticated requests
-	APISecret    string                 `json:"api_secret" env:"API_SECRET"`        // API secret for authenticated requests
-	Sandbox      bool                   `json:"sandbox" env:"SANDBOX"`              // Use sandbox/test environment
-	RateLimit    int                    `json:"rate_limit" env:"RATE_LIMIT"`        // Requests per minute
-	Timeout      string                 `json:"timeout" env:"HTTP_TIMEOUT"`         // HTTP request timeout
-	RetryPolicy  RetryPolicyConfig      `json:"retry_policy"`                       // Retry configuration
-	Exchanges    map[string]interface{} `json:"exchanges"`                          // Exchange-specific configurations
+	Type        string                 `json:"type" env:"EXCHANGE_TYPE"`    // "coinbase", "mock"
+	APIKey      string                 `json:"api_key" env:"API_KEY"`       // API key for authenticated requests
+	APISecret   string                 `json:"api_secret" env:"API_SECRET"` // API secret for authenticated requests
+	Sandbox     bool                   `json:"sandbox" env:"SANDBOX"`       // Use sandbox/test environment
+	RateLimit   int                    `json:"rate_limit" env:"RATE_LIMIT"` // Requests per minute
+	Timeout     string                 `json:"timeout" env:"HTTP_TIMEOUT"`  // HTTP request timeout
+	RetryPolicy RetryPolicyConfig      `json:"retry_policy"`                // Retry configuration
+	Exchanges   map[string]interface{} `json:"exchanges"`                   // Exchange-specific configurations
 }
 
 // CollectorConfig configures the data collection system
@@ -82,59 +82,59 @@ type CollectorConfig struct {
 
 // SchedulerConfig configures the data collection scheduler
 type SchedulerConfig struct {
-	Enabled             bool     `json:"enabled" env:"SCHEDULER_ENABLED"`                     // Enable scheduled collection
-	Interval            string   `json:"interval" env:"SCHEDULER_INTERVAL"`                   // Collection interval
-	MaxConcurrentJobs   int      `json:"max_concurrent_jobs" env:"MAX_CONCURRENT_JOBS"`       // Maximum concurrent jobs
-	JobTimeout          string   `json:"job_timeout" env:"JOB_TIMEOUT"`                       // Job execution timeout
-	EnableHourAlignment bool     `json:"enable_hour_alignment" env:"ENABLE_HOUR_ALIGNMENT"`   // Align to hour boundaries
-	TimezoneLocation    string   `json:"timezone_location" env:"TIMEZONE_LOCATION"`           // Timezone for scheduling
-	DefaultPairs        []string `json:"default_pairs" env:"DEFAULT_PAIRS"`                   // Default trading pairs to collect
-	DefaultIntervals    []string `json:"default_intervals" env:"DEFAULT_INTERVALS"`           // Default time intervals
+	Enabled             bool     `json:"enabled" env:"SCHEDULER_ENABLED"`                   // Enable scheduled collection
+	Interval            string   `json:"interval" env:"SCHEDULER_INTERVAL"`                 // Collection interval
+	MaxConcurrentJobs   int      `json:"max_concurrent_jobs" env:"MAX_CONCURRENT_JOBS"`     // Maximum concurrent jobs
+	JobTimeout          string   `json:"job_timeout" env:"JOB_TIMEOUT"`                     // Job execution timeout
+	EnableHourAlignment bool     `json:"enable_hour_alignment" env:"ENABLE_HOUR_ALIGNMENT"` // Align to hour boundaries
+	TimezoneLocation    string   `json:"timezone_location" env:"TIMEZONE_LOCATION"`         // Timezone for scheduling
+	DefaultPairs        []string `json:"default_pairs" env:"DEFAULT_PAIRS"`                 // Default trading pairs to collect
+	DefaultIntervals    []string `json:"default_intervals" env:"DEFAULT_INTERVALS"`         // Default time intervals
 }
 
 // ValidatorConfig configures data validation
 type ValidatorConfig struct {
-	Enabled                 bool              `json:"enabled" env:"VALIDATOR_ENABLED"`                       // Enable validation
-	PriceSpikeThreshold     float64           `json:"price_spike_threshold" env:"PRICE_SPIKE_THRESHOLD"`     // Price spike detection threshold
-	VolumeSurgeThreshold    float64           `json:"volume_surge_threshold" env:"VOLUME_SURGE_THRESHOLD"`   // Volume surge detection threshold
-	MinConfidenceScore      float64           `json:"min_confidence_score" env:"MIN_CONFIDENCE_SCORE"`       // Minimum confidence score
-	MaxLookbackPeriods      int               `json:"max_lookback_periods" env:"MAX_LOOKBACK_PERIODS"`       // Historical data periods for validation
-	EnabledChecks           []string          `json:"enabled_checks" env:"ENABLED_CHECKS"`                   // List of enabled validation checks
-	SeverityActions         map[string]string `json:"severity_actions"`                                       // Actions for different severity levels
-	BatchSize               int               `json:"batch_size" env:"VALIDATION_BATCH_SIZE"`                // Validation batch size
-	ProcessingTimeout       string            `json:"processing_timeout" env:"VALIDATION_PROCESSING_TIMEOUT"` // Validation processing timeout
+	Enabled              bool              `json:"enabled" env:"VALIDATOR_ENABLED"`                        // Enable validation
+	PriceSpikeThreshold  float64           `json:"price_spike_threshold" env:"PRICE_SPIKE_THRESHOLD"`      // Price spike detection threshold
+	VolumeSurgeThreshold float64           `json:"volume_surge_threshold" env:"VOLUME_SURGE_THRESHOLD"`    // Volume surge detection threshold
+	MinConfidenceScore   float64           `json:"min_confidence_score" env:"MIN_CONFIDENCE_SCORE"`        // Minimum confidence score
+	MaxLookbackPeriods   int               `json:"max_lookback_periods" env:"MAX_LOOKBACK_PERIODS"`        // Historical data periods for validation
+	EnabledChecks        []string          `json:"enabled_checks" env:"ENABLED_CHECKS"`                    // List of enabled validation checks
+	SeverityActions      map[string]string `json:"severity_actions"`                                       // Actions for different severity levels
+	BatchSize            int               `json:"batch_size" env:"VALIDATION_BATCH_SIZE"`                 // Validation batch size
+	ProcessingTimeout    string            `json:"processing_timeout" env:"VALIDATION_PROCESSING_TIMEOUT"` // Validation processing timeout
 }
 
 // LoggingConfig configures structured logging
 type LoggingConfig struct {
-	Level         string            `json:"level" env:"LOG_LEVEL"`           // Log level: debug, info, warn, error
-	Format        string            `json:"format" env:"LOG_FORMAT"`         // Log format: json, text
-	Output        string            `json:"output" env:"LOG_OUTPUT"`         // Output: stdout, stderr, file
-	FilePath      string            `json:"file_path" env:"LOG_FILE_PATH"`   // Log file path
-	MaxSize       int               `json:"max_size" env:"LOG_MAX_SIZE"`     // Maximum log file size in MB
+	Level         string            `json:"level" env:"LOG_LEVEL"`             // Log level: debug, info, warn, error
+	Format        string            `json:"format" env:"LOG_FORMAT"`           // Log format: json, text
+	Output        string            `json:"output" env:"LOG_OUTPUT"`           // Output: stdout, stderr, file
+	FilePath      string            `json:"file_path" env:"LOG_FILE_PATH"`     // Log file path
+	MaxSize       int               `json:"max_size" env:"LOG_MAX_SIZE"`       // Maximum log file size in MB
 	MaxBackups    int               `json:"max_backups" env:"LOG_MAX_BACKUPS"` // Maximum log file backups
-	MaxAge        int               `json:"max_age" env:"LOG_MAX_AGE"`       // Maximum log file age in days
-	Compress      bool              `json:"compress" env:"LOG_COMPRESS"`     // Compress old log files
-	ContextFields map[string]string `json:"context_fields"`                  // Additional context fields
+	MaxAge        int               `json:"max_age" env:"LOG_MAX_AGE"`         // Maximum log file age in days
+	Compress      bool              `json:"compress" env:"LOG_COMPRESS"`       // Compress old log files
+	ContextFields map[string]string `json:"context_fields"`                    // Additional context fields
 }
 
 // MetricsConfig configures metrics collection
 type MetricsConfig struct {
-	Enabled         bool     `json:"enabled" env:"METRICS_ENABLED"`             // Enable metrics collection
-	Port            int      `json:"port" env:"METRICS_PORT"`                   // Metrics server port
-	Path            string   `json:"path" env:"METRICS_PATH"`                   // Metrics endpoint path
-	UpdateInterval  string   `json:"update_interval" env:"METRICS_UPDATE_INTERVAL"` // Metrics update interval
+	Enabled         bool     `json:"enabled" env:"METRICS_ENABLED"`                   // Enable metrics collection
+	Port            int      `json:"port" env:"METRICS_PORT"`                         // Metrics server port
+	Path            string   `json:"path" env:"METRICS_PATH"`                         // Metrics endpoint path
+	UpdateInterval  string   `json:"update_interval" env:"METRICS_UPDATE_INTERVAL"`   // Metrics update interval
 	HistoryDuration string   `json:"history_duration" env:"METRICS_HISTORY_DURATION"` // How long to keep metrics history
-	EnabledMetrics  []string `json:"enabled_metrics" env:"ENABLED_METRICS"`     // List of enabled metrics
+	EnabledMetrics  []string `json:"enabled_metrics" env:"ENABLED_METRICS"`           // List of enabled metrics
 }
 
 // ErrorHandlingConfig configures error handling and retry policies
 type ErrorHandlingConfig struct {
-	GlobalRetryPolicy RetryPolicyConfig       `json:"global_retry_policy"`          // Global retry policy
-	ComponentPolicies map[string]RetryPolicyConfig `json:"component_policies"`    // Component-specific retry policies
-	FallbackBehavior  string                  `json:"fallback_behavior" env:"FALLBACK_BEHAVIOR"` // Behavior when all retries fail
-	EnableCircuitBreaker bool                 `json:"enable_circuit_breaker" env:"ENABLE_CIRCUIT_BREAKER"` // Enable circuit breaker pattern
-	CircuitBreakerConfig CircuitBreakerConfig `json:"circuit_breaker_config"`       // Circuit breaker configuration
+	GlobalRetryPolicy    RetryPolicyConfig            `json:"global_retry_policy"`                                 // Global retry policy
+	ComponentPolicies    map[string]RetryPolicyConfig `json:"component_policies"`                                  // Component-specific retry policies
+	FallbackBehavior     string                       `json:"fallback_behavior" env:"FALLBACK_BEHAVIOR"`           // Behavior when all retries fail
+	EnableCircuitBreaker bool                         `json:"enable_circuit_breaker" env:"ENABLE_CIRCUIT_BREAKER"` // Enable circuit breaker pattern
+	CircuitBreakerConfig CircuitBreakerConfig         `json:"circuit_breaker_config"`                              // Circuit breaker configuration
 }
 
 // RetryPolicyConfig configures retry behavior
@@ -156,11 +156,11 @@ type CircuitBreakerConfig struct {
 
 // ConfigManager handles configuration loading, validation, and hot-reloading
 type ConfigManager struct {
-	config      *AppConfig
-	configPath  string
-	logger      *slog.Logger
-	watchers    []ConfigWatcher
-	reloadChan  chan struct{}
+	config     *AppConfig
+	configPath string
+	logger     *slog.Logger
+	watchers   []ConfigWatcher
+	reloadChan chan struct{}
 }
 
 // ConfigWatcher defines an interface for components that need to be notified of config changes
@@ -520,15 +520,15 @@ func DefaultConfig() *AppConfig {
 			DefaultIntervals:    []string{"1h", "1d"},
 		},
 		Validator: ValidatorConfig{
-			Enabled:                 true,
-			PriceSpikeThreshold:     5.0,  // 500% price change threshold
-			VolumeSurgeThreshold:    10.0, // 10x volume surge threshold
-			MinConfidenceScore:      0.7,  // 70% minimum confidence
-			MaxLookbackPeriods:      24,   // 24 periods for context
-			EnabledChecks:           []string{"price_spike", "volume_surge", "ohlc_logic", "sequence_gap"},
-			SeverityActions:         map[string]string{"critical": "block", "error": "log", "warning": "log", "info": "log"},
-			BatchSize:               100,
-			ProcessingTimeout:       "5s",
+			Enabled:              true,
+			PriceSpikeThreshold:  5.0,  // 500% price change threshold
+			VolumeSurgeThreshold: 10.0, // 10x volume surge threshold
+			MinConfidenceScore:   0.7,  // 70% minimum confidence
+			MaxLookbackPeriods:   24,   // 24 periods for context
+			EnabledChecks:        []string{"price_spike", "volume_surge", "ohlc_logic", "sequence_gap"},
+			SeverityActions:      map[string]string{"critical": "block", "error": "log", "warning": "log", "info": "log"},
+			BatchSize:            100,
+			ProcessingTimeout:    "5s",
 		},
 		Logging: LoggingConfig{
 			Level:      "info",
@@ -619,7 +619,7 @@ func (c *AppConfig) String() string {
 	sanitized := *c
 	sanitized.Exchange.APIKey = "[REDACTED]"
 	sanitized.Exchange.APISecret = "[REDACTED]"
-	
+
 	data, _ := json.MarshalIndent(&sanitized, "", "  ")
 	return string(data)
 }

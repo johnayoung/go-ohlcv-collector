@@ -28,11 +28,11 @@ import (
 // OHLCVValidator provides comprehensive OHLCV data validation and anomaly detection.
 // It implements all three core interfaces: DataValidator, AnomalyDetector, and ValidationPipeline.
 type OHLCVValidator struct {
-	config      *ValidationConfig
-	thresholds  map[models.AnomalyType]decimal.Decimal
-	status      *ValidationPipelineStatus
-	logger      *slog.Logger
-	mu          sync.RWMutex
+	config     *ValidationConfig
+	thresholds map[models.AnomalyType]decimal.Decimal
+	status     *ValidationPipelineStatus
+	logger     *slog.Logger
+	mu         sync.RWMutex
 }
 
 // NewOHLCVValidator creates a new OHLCV validator with default configuration.
@@ -116,14 +116,14 @@ func (v *OHLCVValidator) ValidateCandles(ctx context.Context, candles []contract
 		// Convert model anomalies to validator anomaly detections
 		for _, anomaly := range result.Anomalies {
 			allAnomalies = append(allAnomalies, AnomalyDetection{
-				CandleIndex:  i,
-				AnomalyType:  string(anomaly.Type),
-				Severity:     string(anomaly.Severity),
-				Confidence:   anomaly.Confidence,
-				Description:  anomaly.Description,
-				Value:        anomaly.Value,
-				Threshold:    anomaly.Threshold,
-				DetectedAt:   time.Now().UTC(),
+				CandleIndex: i,
+				AnomalyType: string(anomaly.Type),
+				Severity:    string(anomaly.Severity),
+				Confidence:  anomaly.Confidence,
+				Description: anomaly.Description,
+				Value:       anomaly.Value,
+				Threshold:   anomaly.Threshold,
+				DetectedAt:  time.Now().UTC(),
 			})
 		}
 	}
@@ -154,14 +154,14 @@ func (v *OHLCVValidator) ValidateCandles(ctx context.Context, candles []contract
 			// Convert to AnomalyDetection format
 			for i, anomaly := range timestampAnomalies {
 				allAnomalies = append(allAnomalies, AnomalyDetection{
-					CandleIndex:  i,
-					AnomalyType:  string(anomaly.Type),
-					Severity:     string(anomaly.Severity),
-					Confidence:   anomaly.Confidence,
-					Description:  anomaly.Description,
-					Value:        anomaly.Value,
-					Threshold:    anomaly.Threshold,
-					DetectedAt:   time.Now().UTC(),
+					CandleIndex: i,
+					AnomalyType: string(anomaly.Type),
+					Severity:    string(anomaly.Severity),
+					Confidence:  anomaly.Confidence,
+					Description: anomaly.Description,
+					Value:       anomaly.Value,
+					Threshold:   anomaly.Threshold,
+					DetectedAt:  time.Now().UTC(),
 				})
 			}
 		}
@@ -289,7 +289,7 @@ func (v *OHLCVValidator) ValidateTimestampSequence(ctx context.Context, timestam
 func (v *OHLCVValidator) GetConfig() *ValidationConfig {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
-	
+
 	// Return a copy to prevent external modification
 	configCopy := *v.config
 	return &configCopy
@@ -311,7 +311,7 @@ func (v *OHLCVValidator) UpdateConfig(ctx context.Context, config *ValidationCon
 	defer v.mu.Unlock()
 
 	v.config = config
-	
+
 	// Update thresholds based on new config
 	v.thresholds[models.AnomalyTypePriceSpike] = decimal.NewFromFloat(config.PriceSpikeThreshold)
 	v.thresholds[models.AnomalyTypeVolumeSurge] = decimal.NewFromFloat(config.VolumeSurgeThreshold)
@@ -687,10 +687,10 @@ func (v *OHLCVValidator) GetQualityMetrics(ctx context.Context, results []*model
 	}
 
 	metrics := &DataQualityMetrics{
-		TotalCandles:     int64(len(results)),
-		ErrorsByType:     make(map[string]int64),
-		AnomaliesByType:  make(map[string]int64),
-		ProcessedAt:      time.Now().UTC(),
+		TotalCandles:    int64(len(results)),
+		ErrorsByType:    make(map[string]int64),
+		AnomaliesByType: make(map[string]int64),
+		ProcessedAt:     time.Now().UTC(),
 	}
 
 	var validCount int64
@@ -733,10 +733,10 @@ func (v *OHLCVValidator) GetQualityMetrics(ctx context.Context, results []*model
 	if metrics.TotalCandles > 0 {
 		errorWeight := 0.7
 		anomalyWeight := 0.3
-		
+
 		errorScore := 1.0 - (float64(metrics.ValidationErrors) / float64(metrics.TotalCandles))
 		anomalyScore := 1.0 - (float64(metrics.AnomaliesDetected) / float64(metrics.TotalCandles))
-		
+
 		metrics.QualityScore = (errorScore * errorWeight) + (anomalyScore * anomalyWeight)
 		if metrics.QualityScore < 0 {
 			metrics.QualityScore = 0
@@ -815,14 +815,14 @@ func (v *OHLCVValidator) detectCrossCandleAnomalies(ctx context.Context, candles
 
 	for i, anomaly := range priceAnomalies {
 		allAnomalies = append(allAnomalies, AnomalyDetection{
-			CandleIndex:  i + 1, // Price spikes are detected on the second candle
-			AnomalyType:  string(anomaly.Type),
-			Severity:     string(anomaly.Severity),
-			Confidence:   anomaly.Confidence,
-			Description:  anomaly.Description,
-			Value:        anomaly.Value,
-			Threshold:    anomaly.Threshold,
-			DetectedAt:   time.Now().UTC(),
+			CandleIndex: i + 1, // Price spikes are detected on the second candle
+			AnomalyType: string(anomaly.Type),
+			Severity:    string(anomaly.Severity),
+			Confidence:  anomaly.Confidence,
+			Description: anomaly.Description,
+			Value:       anomaly.Value,
+			Threshold:   anomaly.Threshold,
+			DetectedAt:  time.Now().UTC(),
 		})
 	}
 
@@ -834,14 +834,14 @@ func (v *OHLCVValidator) detectCrossCandleAnomalies(ctx context.Context, candles
 
 	for i, anomaly := range volumeAnomalies {
 		allAnomalies = append(allAnomalies, AnomalyDetection{
-			CandleIndex:  i + 1, // Volume surges are detected on the second candle
-			AnomalyType:  string(anomaly.Type),
-			Severity:     string(anomaly.Severity),
-			Confidence:   anomaly.Confidence,
-			Description:  anomaly.Description,
-			Value:        anomaly.Value,
-			Threshold:    anomaly.Threshold,
-			DetectedAt:   time.Now().UTC(),
+			CandleIndex: i + 1, // Volume surges are detected on the second candle
+			AnomalyType: string(anomaly.Type),
+			Severity:    string(anomaly.Severity),
+			Confidence:  anomaly.Confidence,
+			Description: anomaly.Description,
+			Value:       anomaly.Value,
+			Threshold:   anomaly.Threshold,
+			DetectedAt:  time.Now().UTC(),
 		})
 	}
 
@@ -863,7 +863,7 @@ func (v *OHLCVValidator) estimateInterval(timestamps []time.Time) time.Duration 
 
 	// Calculate intervals and find the most common one
 	intervals := make(map[time.Duration]int)
-	
+
 	for i := 1; i < len(sortedTimestamps); i++ {
 		interval := sortedTimestamps[i].Sub(sortedTimestamps[i-1])
 		// Round to nearest minute to handle minor variations
@@ -874,7 +874,7 @@ func (v *OHLCVValidator) estimateInterval(timestamps []time.Time) time.Duration 
 	// Find the most common interval
 	var mostCommonInterval time.Duration
 	maxCount := 0
-	
+
 	for interval, count := range intervals {
 		if count > maxCount {
 			maxCount = count
@@ -928,6 +928,6 @@ func ShouldEscalateSeverity(current, proposed models.SeverityLevel) bool {
 		models.SeverityError:    3,
 		models.SeverityCritical: 4,
 	}
-	
+
 	return severityLevels[proposed] > severityLevels[current]
 }

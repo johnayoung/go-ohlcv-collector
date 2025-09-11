@@ -79,7 +79,7 @@ func TestNewCandle_ValidData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			candle, err := NewCandle(testTime, tt.open, tt.high, tt.low, tt.close, tt.volume, testPair, testInterval)
-			
+
 			if tt.expected {
 				assert.NoError(t, err)
 				assert.NotNil(t, candle)
@@ -1171,11 +1171,11 @@ func TestCandle_Validate_ComprehensiveInvalidScenarios(t *testing.T) {
 			setupCandle: func() *Candle {
 				return &Candle{
 					Timestamp: testTime,
-					Open:      "1e2", // Valid: 100
+					Open:      "1e2",    // Valid: 100
 					High:      "1.05e2", // Valid: 105
-					Low:       "9.5e1", // Valid: 95
+					Low:       "9.5e1",  // Valid: 95
 					Close:     "1.02e2", // Valid: 102
-					Volume:    "1.5e3", // Valid: 1500
+					Volume:    "1.5e3",  // Valid: 1500
 					Pair:      testPair,
 					Interval:  testInterval,
 				}
@@ -1205,12 +1205,12 @@ func TestCandle_Validate_ComprehensiveInvalidScenarios(t *testing.T) {
 
 func TestCandle_Validate_DecimalPrecisionHandling(t *testing.T) {
 	tests := []struct {
-		name        string
-		open        string
-		high        string
-		low         string
-		close       string
-		shouldPass  bool
+		name       string
+		open       string
+		high       string
+		low        string
+		close      string
+		shouldPass bool
 	}{
 		{
 			name:       "trailing_zeros",

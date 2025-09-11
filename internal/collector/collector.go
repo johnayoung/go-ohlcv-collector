@@ -86,24 +86,24 @@ type HistoricalRequest struct {
 
 // CollectionMetrics provides comprehensive collection statistics
 type CollectionMetrics struct {
-	CandlesCollected   int64
-	ErrorCount         int64
-	SuccessRate        float64
-	AvgResponseTime    time.Duration
-	RateLimitHits      int64
-	MemoryUsageMB      int64
-	ActiveConnections  int
-	WorkerPoolStats    *WorkerPoolStats
-	ValidationStats    *ValidationStats
+	CandlesCollected  int64
+	ErrorCount        int64
+	SuccessRate       float64
+	AvgResponseTime   time.Duration
+	RateLimitHits     int64
+	MemoryUsageMB     int64
+	ActiveConnections int
+	WorkerPoolStats   *WorkerPoolStats
+	ValidationStats   *ValidationStats
 }
 
 // WorkerPoolStats provides worker pool performance metrics
 type WorkerPoolStats struct {
-	ActiveWorkers   int
-	QueuedJobs      int
-	CompletedJobs   int64
-	FailedJobs      int64
-	AvgJobDuration  time.Duration
+	ActiveWorkers  int
+	QueuedJobs     int
+	CompletedJobs  int64
+	FailedJobs     int64
+	AvgJobDuration time.Duration
 }
 
 // ValidationStats provides validation performance metrics
@@ -116,14 +116,14 @@ type ValidationStats struct {
 
 // Config configures the collector behavior
 type Config struct {
-	WorkerCount       int
-	BatchSize         int
-	RateLimit         int
-	MemoryLimitMB     int
-	RetryAttempts     int
-	ValidationEnabled bool
+	WorkerCount         int
+	BatchSize           int
+	RateLimit           int
+	MemoryLimitMB       int
+	RetryAttempts       int
+	ValidationEnabled   bool
 	GapDetectionEnabled bool
-	Logger            *slog.Logger
+	Logger              *slog.Logger
 }
 
 // DefaultConfig returns a configuration with sensible defaults based on research findings
@@ -153,21 +153,21 @@ type collectorImpl struct {
 	// Rate limiting and concurrency control
 	rateLimiter *rate.Limiter
 	workerPool  *WorkerPool
-	
+
 	// Metrics and monitoring
-	metrics     *metricsCollector
-	memoryMgmt  *memoryManager
+	metrics    *metricsCollector
+	memoryMgmt *memoryManager
 
 	// Object pools for memory management
-	candlePool    *sync.Pool
-	requestPool   *sync.Pool
-	responsePool  *sync.Pool
+	candlePool   *sync.Pool
+	requestPool  *sync.Pool
+	responsePool *sync.Pool
 
 	// State management
-	isRunning   int32
-	shutdownCh  chan struct{}
-	wg          sync.WaitGroup
-	mu          sync.RWMutex
+	isRunning  int32
+	shutdownCh chan struct{}
+	wg         sync.WaitGroup
+	mu         sync.RWMutex
 
 	logger *slog.Logger
 }
@@ -191,16 +191,16 @@ func New(
 		validator: validator,
 		gaps:      gapDetector,
 		logger:    config.Logger,
-		
+
 		// Initialize rate limiter (10 req/sec from research)
 		rateLimiter: rate.NewLimiter(rate.Limit(config.RateLimit), 1),
-		
+
 		// Initialize shutdown channel
 		shutdownCh: make(chan struct{}),
-		
+
 		// Initialize metrics collector
 		metrics: newMetricsCollector(),
-		
+
 		// Initialize memory manager
 		memoryMgmt: newMemoryManager(config.MemoryLimitMB),
 	}
@@ -323,7 +323,7 @@ func (c *collectorImpl) Health(ctx context.Context) error {
 // CollectHistorical performs historical data collection with comprehensive error handling
 func (c *collectorImpl) CollectHistorical(ctx context.Context, req HistoricalRequest) error {
 	startTime := time.Now()
-	
+
 	c.logger.Info("Starting historical data collection",
 		"pair", req.Pair,
 		"interval", req.Interval,
@@ -353,7 +353,7 @@ func (c *collectorImpl) CollectHistorical(ctx context.Context, req HistoricalReq
 
 	// Process collection with retries
 	err := c.processHistoricalWithRetry(ctx, req, job)
-	
+
 	// Update job status based on result
 	if err != nil {
 		job.Fail(err.Error())
@@ -370,7 +370,7 @@ func (c *collectorImpl) CollectHistorical(ctx context.Context, req HistoricalReq
 	job.Complete()
 	duration := time.Since(startTime)
 	c.metrics.recordSuccess(duration)
-	
+
 	c.logger.Info("Historical collection completed successfully",
 		"pair", req.Pair,
 		"interval", req.Interval,
@@ -410,7 +410,7 @@ func (c *collectorImpl) processHistoricalData(ctx context.Context, req Historica
 	// Calculate time chunks for batch processing
 	chunks := c.calculateTimeChunks(req.Start, req.End, req.Interval)
 	totalChunks := len(chunks)
-	
+
 	c.logger.Debug("Processing historical data in chunks",
 		"total_chunks", totalChunks,
 		"chunk_duration", chunks[0].duration,
@@ -461,7 +461,7 @@ func (c *collectorImpl) processHistoricalData(ctx context.Context, req Historica
 			if err := c.storeBatch(ctx, allCandles); err != nil {
 				return fmt.Errorf("failed to store batch: %w", err)
 			}
-			
+
 			// Return candles to pool to reduce GC pressure
 			c.returnCandlesToPool(allCandles)
 			allCandles = allCandles[:0] // Reset slice but keep capacity
@@ -477,7 +477,7 @@ func (c *collectorImpl) processHistoricalData(ctx context.Context, req Historica
 				c.returnCandlesToPool(allCandles)
 				allCandles = allCandles[:0]
 			}
-			
+
 			// Force GC to free memory
 			runtime.GC()
 		}
@@ -515,10 +515,10 @@ func (c *collectorImpl) CollectScheduled(ctx context.Context, pairs []string, in
 
 	for _, pair := range pairs {
 		wg.Add(1)
-		
+
 		go func(p string) {
 			defer wg.Done()
-			
+
 			// For scheduled collection, get recent data (last 2 days to ensure overlap)
 			req := HistoricalRequest{
 				Pair:     p,
@@ -526,7 +526,7 @@ func (c *collectorImpl) CollectScheduled(ctx context.Context, pairs []string, in
 				Start:    time.Now().AddDate(0, 0, -2), // Last 2 days
 				End:      time.Now(),
 			}
-			
+
 			if err := c.CollectHistorical(ctx, req); err != nil {
 				errCh <- fmt.Errorf("failed to collect %s: %w", p, err)
 			}
@@ -557,15 +557,15 @@ func (c *collectorImpl) CollectScheduled(ctx context.Context, pairs []string, in
 // GetMetrics returns current collection metrics
 func (c *collectorImpl) GetMetrics(ctx context.Context) (*CollectionMetrics, error) {
 	metrics := c.metrics.getMetrics()
-	
+
 	// Add current memory usage
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	metrics.MemoryUsageMB = int64(memStats.Alloc / 1024 / 1024)
-	
+
 	// Add worker pool stats
 	metrics.WorkerPoolStats = c.workerPool.GetStats()
-	
+
 	// Add validation stats if validator is available
 	if c.validator != nil {
 		status := c.validator.GetStatus()
@@ -592,28 +592,28 @@ type timeChunk struct {
 func (c *collectorImpl) calculateTimeChunks(start, end time.Time, interval string) []timeChunk {
 	// Maximum 300 candles per request from Coinbase API research
 	maxCandlesPerChunk := 300
-	
+
 	intervalDuration := c.parseInterval(interval)
 	maxChunkDuration := time.Duration(maxCandlesPerChunk) * intervalDuration
-	
+
 	var chunks []timeChunk
 	current := start
-	
+
 	for current.Before(end) {
 		chunkEnd := current.Add(maxChunkDuration)
 		if chunkEnd.After(end) {
 			chunkEnd = end
 		}
-		
+
 		chunks = append(chunks, timeChunk{
 			start:    current,
 			end:      chunkEnd,
 			duration: chunkEnd.Sub(current),
 		})
-		
+
 		current = chunkEnd
 	}
-	
+
 	return chunks
 }
 
@@ -650,41 +650,41 @@ func (c *collectorImpl) fetchChunkData(ctx context.Context, pair, interval strin
 	// Get request from pool
 	req := c.requestPool.Get().(*contracts.FetchRequest)
 	defer c.requestPool.Put(req)
-	
+
 	// Configure request
 	req.Pair = pair
 	req.Start = chunk.start
 	req.End = chunk.end
 	req.Interval = interval
 	req.Limit = 300 // Max from Coinbase API
-	
+
 	// Record request start time for metrics
 	startTime := time.Now()
-	
+
 	// Fetch data from exchange
 	resp, err := c.exchange.FetchCandles(ctx, *req)
 	if err != nil {
 		c.metrics.recordError("fetch", err)
 		return nil, fmt.Errorf("exchange fetch failed: %w", err)
 	}
-	
+
 	// Record response time
 	c.metrics.recordResponseTime(time.Since(startTime))
-	
+
 	// Handle rate limiting
 	if resp.RateLimit.RetryAfter > 0 {
 		c.metrics.recordRateLimitHit()
 		c.logger.Debug("Rate limit hit, waiting",
 			"retry_after", resp.RateLimit.RetryAfter,
 		)
-		
+
 		select {
 		case <-time.After(resp.RateLimit.RetryAfter):
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
 	}
-	
+
 	return resp.Candles, nil
 }
 
@@ -693,14 +693,14 @@ func (c *collectorImpl) storeBatch(ctx context.Context, candles []contracts.Cand
 	if len(candles) == 0 {
 		return nil
 	}
-	
+
 	startTime := time.Now()
-	
+
 	// Use batch storage for efficiency
 	if err := c.storage.StoreBatch(ctx, candles); err != nil {
 		return fmt.Errorf("batch storage failed: %w", err)
 	}
-	
+
 	// Record storage metrics
 	c.metrics.recordCandlesStored(len(candles))
 	c.metrics.recordCandlesCollected(len(candles))
@@ -708,7 +708,7 @@ func (c *collectorImpl) storeBatch(ctx context.Context, candles []contracts.Cand
 		"count", len(candles),
 		"duration", time.Since(startTime),
 	)
-	
+
 	return nil
 }
 
@@ -718,7 +718,7 @@ func (c *collectorImpl) detectAndStoreGaps(ctx context.Context, req HistoricalRe
 	if err != nil {
 		return fmt.Errorf("gap detection failed: %w", err)
 	}
-	
+
 	// Store detected gaps
 	for _, gap := range gaps {
 		gapContract := contracts.Gap{
@@ -730,18 +730,18 @@ func (c *collectorImpl) detectAndStoreGaps(ctx context.Context, req HistoricalRe
 			Status:    string(gap.Status),
 			CreatedAt: gap.CreatedAt,
 		}
-		
+
 		if err := c.storage.StoreGap(ctx, gapContract); err != nil {
 			c.logger.Warn("Failed to store gap", "gap_id", gap.ID, "error", err)
 			// Continue processing other gaps
 		}
 	}
-	
+
 	c.logger.Info("Gap detection completed",
 		"pair", req.Pair,
 		"gaps_detected", len(gaps),
 	)
-	
+
 	return nil
 }
 
@@ -750,28 +750,28 @@ func (c *collectorImpl) validateHistoricalRequest(req HistoricalRequest) error {
 	if req.Pair == "" {
 		return fmt.Errorf("pair is required")
 	}
-	
+
 	if req.Interval == "" {
 		return fmt.Errorf("interval is required")
 	}
-	
+
 	if req.Start.IsZero() {
 		return fmt.Errorf("start time is required")
 	}
-	
+
 	if req.End.IsZero() {
 		return fmt.Errorf("end time is required")
 	}
-	
+
 	if req.Start.After(req.End) {
 		return fmt.Errorf("start time must be before end time")
 	}
-	
+
 	// Validate interval format
 	if c.parseInterval(req.Interval) == 0 {
 		return fmt.Errorf("invalid interval format: %s", req.Interval)
 	}
-	
+
 	return nil
 }
 
@@ -781,7 +781,7 @@ func (c *collectorImpl) returnCandlesToPool(candles []contracts.Candle) {
 	for i := range candles {
 		candles[i] = contracts.Candle{} // Zero out for GC
 	}
-	
+
 	candleSlice := candles[:0]
 	c.candlePool.Put(candleSlice)
 }
@@ -791,15 +791,15 @@ func (c *collectorImpl) startMemoryMonitoring(ctx context.Context) {
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
-		
+
 		ticker := time.NewTicker(MemoryCheckInterval)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ticker.C:
 				c.memoryMgmt.CheckAndReport()
-				
+
 				if c.memoryMgmt.IsOverLimit() {
 					c.logger.Warn("Memory usage over limit, forcing GC",
 						"usage_mb", c.memoryMgmt.GetUsageMB(),
@@ -807,7 +807,7 @@ func (c *collectorImpl) startMemoryMonitoring(ctx context.Context) {
 					)
 					runtime.GC()
 				}
-				
+
 			case <-c.shutdownCh:
 				return
 			case <-ctx.Done():
@@ -822,10 +822,10 @@ func (c *collectorImpl) startMetricsCollection(ctx context.Context) {
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
-		
+
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ticker.C:
@@ -836,7 +836,7 @@ func (c *collectorImpl) startMetricsCollection(ctx context.Context) {
 					"avg_response_time", metrics.AvgResponseTime,
 					"error_count", metrics.ErrorCount,
 				)
-				
+
 			case <-c.shutdownCh:
 				return
 			case <-ctx.Done():

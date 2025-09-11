@@ -81,24 +81,24 @@ type Scheduler interface {
 
 // SchedulerStats provides scheduler performance metrics
 type SchedulerStats struct {
-	TotalJobs       int
-	RunningJobs     int
-	CompletedJobs   int64
-	FailedJobs      int64
-	LastRunTime     time.Time
-	NextRunTime     time.Time
-	UptimeSeconds   int64
-	MemoryUsageMB   float64
+	TotalJobs     int
+	RunningJobs   int
+	CompletedJobs int64
+	FailedJobs    int64
+	LastRunTime   time.Time
+	NextRunTime   time.Time
+	UptimeSeconds int64
+	MemoryUsageMB float64
 }
 
 // collectionJobImpl implements CollectionJob
 type collectionJobImpl struct {
-	id       string
-	pair     string
-	interval string
-	nextRun  time.Time
+	id        string
+	pair      string
+	interval  string
+	nextRun   time.Time
 	collector Collector
-	mu       sync.RWMutex
+	mu        sync.RWMutex
 }
 
 // NewCollectionJob creates a new collection job
@@ -109,10 +109,10 @@ func NewCollectionJob(id, pair, interval string, collector Collector) Collection
 		interval:  interval,
 		collector: collector,
 	}
-	
+
 	// Calculate initial next run time with hour alignment
 	job.nextRun = calculateNextBoundaryTime(time.Now(), interval)
-	
+
 	return job
 }
 
@@ -125,7 +125,7 @@ func NewCollectionJobWithNextRun(id, pair, interval string, collector Collector,
 		collector: collector,
 		nextRun:   nextRun,
 	}
-	
+
 	return job
 }
 
@@ -138,7 +138,7 @@ func (j *collectionJobImpl) Execute(ctx context.Context) error {
 		Start:    time.Now().Add(-2 * time.Hour),
 		End:      time.Now(),
 	}
-	
+
 	return j.collector.CollectHistorical(ctx, req)
 }
 
@@ -185,8 +185,8 @@ type schedulerImpl struct {
 	startTime time.Time
 
 	// Job management
-	jobs    []CollectionJob
-	jobsMu  sync.RWMutex
+	jobs   []CollectionJob
+	jobsMu sync.RWMutex
 
 	// Scheduling
 	ticker     *time.Ticker
@@ -250,7 +250,7 @@ func (s *schedulerImpl) initializeJobs() {
 	for _, pair := range s.config.Pairs {
 		for _, interval := range s.config.Intervals {
 			jobID := fmt.Sprintf("%s_%s", pair, interval)
-			
+
 			// For testing environments, start jobs immediately if tick interval is small
 			var job CollectionJob
 			if s.config.TickInterval < time.Second {
@@ -260,7 +260,7 @@ func (s *schedulerImpl) initializeJobs() {
 				// Production mode - calculate proper next run time
 				job = NewCollectionJob(jobID, pair, interval, s.collector)
 			}
-			
+
 			s.jobs = append(s.jobs, job)
 		}
 	}
@@ -509,10 +509,10 @@ func (s *schedulerImpl) schedulingLoop() {
 // processScheduledJobs checks for and executes jobs that are due to run
 func (s *schedulerImpl) processScheduledJobs() {
 	now := time.Now()
-	
+
 	s.jobsMu.RLock()
 	jobsToRun := make([]CollectionJob, 0)
-	
+
 	// Find jobs that are ready to run (with small tolerance for timing precision)
 	for _, job := range s.jobs {
 		nextRun := job.GetNextRun()
@@ -553,10 +553,10 @@ func (s *schedulerImpl) processScheduledJobs() {
 		select {
 		case s.jobSemaphore <- struct{}{}: // Acquire semaphore
 			atomic.AddInt32(&s.runningJobs, 1)
-			
+
 			s.wg.Add(1)
 			go s.executeJob(job)
-			
+
 		default:
 			// No available slots, skip this job for now
 			s.logger.Warn("No available slots for job execution",
@@ -577,7 +577,7 @@ func (s *schedulerImpl) executeJob(job CollectionJob) {
 	}()
 
 	startTime := time.Now()
-	
+
 	s.logger.Debug("Executing collection job",
 		"pair", job.GetPair(),
 		"interval", job.GetInterval(),
@@ -599,7 +599,7 @@ func (s *schedulerImpl) executeJob(job CollectionJob) {
 			"error", err,
 			"duration", duration,
 		)
-		
+
 		// Implement recovery retry delay
 		time.Sleep(s.config.RecoveryRetryDelay)
 	} else {
@@ -616,9 +616,9 @@ func (s *schedulerImpl) executeJob(job CollectionJob) {
 	if s.config.EnableHourlyAlignment {
 		nextRun = alignToHourBoundary(nextRun, job.GetInterval())
 	}
-	
+
 	job.SetNextRun(nextRun)
-	
+
 	s.logger.Debug("Scheduled next run",
 		"pair", job.GetPair(),
 		"interval", job.GetInterval(),
@@ -675,12 +675,12 @@ func (s *schedulerImpl) performHealthCheck() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	memoryUsageMB := float64(memStats.Alloc) / (1024 * 1024)
-	
+
 	if memoryUsageMB > 500 { // Warning threshold
 		s.logger.Warn("High memory usage detected",
 			"memory_mb", memoryUsageMB,
 		)
-		
+
 		// Force garbage collection if memory is very high
 		if memoryUsageMB > 1000 {
 			s.logger.Info("Forcing garbage collection due to high memory usage")

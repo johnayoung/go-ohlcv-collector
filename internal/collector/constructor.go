@@ -46,7 +46,7 @@ func NewWithConfig(
 		validator = &stubValidator{}
 	}
 
-	// Create gap detector if not provided  
+	// Create gap detector if not provided
 	if gapDetector == nil {
 		// Create a mock/stub gap detector for now
 		// In a real implementation, this would create a proper gap detector
@@ -60,12 +60,12 @@ func NewWithConfig(
 
 // CollectorBuilder provides a builder pattern for creating collectors
 type CollectorBuilder struct {
-	exchange      contracts.ExchangeAdapter
-	storage       contracts.FullStorage
-	validator     validator.ValidationPipeline
-	gapDetector   gaps.GapDetector
-	config        *Config
-	logger        *slog.Logger
+	exchange    contracts.ExchangeAdapter
+	storage     contracts.FullStorage
+	validator   validator.ValidationPipeline
+	gapDetector gaps.GapDetector
+	config      *Config
+	logger      *slog.Logger
 }
 
 // NewBuilder creates a new collector builder
@@ -243,4 +243,3 @@ func (s *stubGapDetector) DetectRecentGaps(ctx context.Context, pair, interval s
 func (s *stubGapDetector) ValidateGapPeriod(ctx context.Context, pair string, startTime, endTime time.Time, interval string) (bool, string, error) {
 	return true, "", nil
 }
-

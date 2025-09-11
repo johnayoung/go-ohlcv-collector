@@ -13,7 +13,7 @@ import (
 // StubStorage provides an in-memory storage implementation for testing
 type StubStorage struct {
 	candles map[string][]contracts.Candle // key: pair_interval
-	gaps    map[string][]contracts.Gap   // key: pair_interval
+	gaps    map[string][]contracts.Gap    // key: pair_interval
 	mu      sync.RWMutex
 	closed  bool
 }
@@ -288,12 +288,12 @@ func (s *StubStorage) GetStats(ctx context.Context) (*contracts.StorageStats, er
 	}
 
 	return &contracts.StorageStats{
-		TotalCandles:     totalCandles,
-		TotalPairs:       len(pairSet),
-		EarliestData:     earliest,
-		LatestData:       latest,
-		StorageSize:      0, // Not applicable for memory
-		IndexSize:        0, // Not applicable for memory
+		TotalCandles: totalCandles,
+		TotalPairs:   len(pairSet),
+		EarliestData: earliest,
+		LatestData:   latest,
+		StorageSize:  0, // Not applicable for memory
+		IndexSize:    0, // Not applicable for memory
 		QueryPerformance: map[string]time.Duration{
 			"query": time.Microsecond,
 		},

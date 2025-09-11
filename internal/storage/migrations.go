@@ -33,8 +33,8 @@ func NewMigrationManager(db *sql.DB, logger *slog.Logger) *MigrationManager {
 	}
 
 	return &MigrationManager{
-		db:     db,
-		logger: logger,
+		db:      db,
+		logger:  logger,
 		migrate: getAllMigrations(),
 	}
 }
@@ -68,7 +68,7 @@ func (m *MigrationManager) Migrate(ctx context.Context, targetVersion int) error
 		return fmt.Errorf("failed to get current version: %w", err)
 	}
 
-	m.logger.Info("starting migration", 
+	m.logger.Info("starting migration",
 		"current_version", currentVersion,
 		"target_version", targetVersion)
 
@@ -86,8 +86,8 @@ func (m *MigrationManager) Migrate(ctx context.Context, targetVersion int) error
 	}
 
 	if len(migrationsToRun) == 0 {
-		m.logger.Info("no migrations found in range", 
-			"current", currentVersion, 
+		m.logger.Info("no migrations found in range",
+			"current", currentVersion,
 			"target", targetVersion)
 		return nil
 	}
@@ -99,7 +99,7 @@ func (m *MigrationManager) Migrate(ctx context.Context, targetVersion int) error
 		}
 	}
 
-	m.logger.Info("all migrations completed successfully", 
+	m.logger.Info("all migrations completed successfully",
 		"final_version", targetVersion,
 		"migrations_run", len(migrationsToRun))
 
@@ -124,7 +124,7 @@ func (m *MigrationManager) Rollback(ctx context.Context, targetVersion int) erro
 		return fmt.Errorf("failed to get current version: %w", err)
 	}
 
-	m.logger.Info("starting rollback", 
+	m.logger.Info("starting rollback",
 		"current_version", currentVersion,
 		"target_version", targetVersion)
 
@@ -149,7 +149,7 @@ func (m *MigrationManager) Rollback(ctx context.Context, targetVersion int) erro
 		}
 	}
 
-	m.logger.Info("rollback completed successfully", 
+	m.logger.Info("rollback completed successfully",
 		"final_version", targetVersion,
 		"migrations_rolled_back", len(migrationsToRollback))
 
@@ -193,8 +193,8 @@ func (m *MigrationManager) GetStatus(ctx context.Context) (*MigrationStatus, err
 // runMigration executes a single migration with timing and error handling
 func (m *MigrationManager) runMigration(ctx context.Context, migration Migration) error {
 	start := time.Now()
-	
-	m.logger.Info("applying migration", 
+
+	m.logger.Info("applying migration",
 		"version", migration.Version,
 		"description", migration.Description)
 
@@ -216,9 +216,9 @@ func (m *MigrationManager) runMigration(ctx context.Context, migration Migration
 		INSERT INTO schema_migrations (version, description, applied_at, execution_time) 
 		VALUES ($1, $2, $3, $4)`
 
-	if _, err := tx.ExecContext(ctx, insertQuery, 
-		migration.Version, 
-		migration.Description, 
+	if _, err := tx.ExecContext(ctx, insertQuery,
+		migration.Version,
+		migration.Description,
 		start,
 		executionTime); err != nil {
 		return fmt.Errorf("failed to record migration: %w", err)
@@ -229,7 +229,7 @@ func (m *MigrationManager) runMigration(ctx context.Context, migration Migration
 	}
 
 	duration := time.Since(start)
-	m.logger.Info("migration applied successfully", 
+	m.logger.Info("migration applied successfully",
 		"version", migration.Version,
 		"duration", duration)
 
@@ -239,8 +239,8 @@ func (m *MigrationManager) runMigration(ctx context.Context, migration Migration
 // rollbackMigration executes a single migration rollback
 func (m *MigrationManager) rollbackMigration(ctx context.Context, migration Migration) error {
 	start := time.Now()
-	
-	m.logger.Info("rolling back migration", 
+
+	m.logger.Info("rolling back migration",
 		"version", migration.Version,
 		"description", migration.Description)
 
@@ -270,7 +270,7 @@ func (m *MigrationManager) rollbackMigration(ctx context.Context, migration Migr
 		return fmt.Errorf("failed to commit rollback: %w", err)
 	}
 
-	m.logger.Info("migration rolled back successfully", 
+	m.logger.Info("migration rolled back successfully",
 		"version", migration.Version,
 		"duration", time.Since(start))
 
@@ -281,7 +281,7 @@ func (m *MigrationManager) rollbackMigration(ctx context.Context, migration Migr
 func (m *MigrationManager) getCurrentVersion(ctx context.Context) (int, error) {
 	var version int
 	query := "SELECT COALESCE(MAX(version), 0) FROM schema_migrations"
-	
+
 	err := m.db.QueryRowContext(ctx, query).Scan(&version)
 	if err != nil {
 		// Table might not exist yet
@@ -480,7 +480,7 @@ func migrationV3Up(ctx context.Context, db *sql.Tx) error {
 			FOREIGN KEY (pair, interval, candle_timestamp) REFERENCES candles(pair, interval, timestamp)
 		)`,
 
-		// Anomalies table  
+		// Anomalies table
 		`CREATE TABLE IF NOT EXISTS anomalies (
 			id VARCHAR PRIMARY KEY,
 			validation_result_id VARCHAR NOT NULL,
@@ -555,7 +555,7 @@ func migrationV5Up(ctx context.Context, db *sql.Tx) error {
 		"CREATE INDEX IF NOT EXISTS idx_candles_timestamp ON candles (timestamp)",
 		"CREATE INDEX IF NOT EXISTS idx_candles_pair_timestamp ON candles (pair, timestamp)",
 		"CREATE INDEX IF NOT EXISTS idx_candles_volume ON candles (volume)",
-		
+
 		// Gaps indexes for efficient gap management
 		"CREATE INDEX IF NOT EXISTS idx_gaps_pair_interval ON gaps (pair, interval)",
 		"CREATE INDEX IF NOT EXISTS idx_gaps_status ON gaps (status)",
@@ -590,7 +590,7 @@ func migrationV5Up(ctx context.Context, db *sql.Tx) error {
 func migrationV5Down(ctx context.Context, db *sql.Tx) error {
 	indexes := []string{
 		"DROP INDEX IF EXISTS idx_candles_pair_interval",
-		"DROP INDEX IF EXISTS idx_candles_timestamp", 
+		"DROP INDEX IF EXISTS idx_candles_timestamp",
 		"DROP INDEX IF EXISTS idx_candles_pair_timestamp",
 		"DROP INDEX IF EXISTS idx_candles_volume",
 		"DROP INDEX IF EXISTS idx_gaps_pair_interval",
@@ -619,12 +619,12 @@ func migrationV5Down(ctx context.Context, db *sql.Tx) error {
 
 // MigrationStatus represents the current state of database migrations
 type MigrationStatus struct {
-	CurrentVersion      int                 `json:"current_version"`
-	LatestVersion       int                 `json:"latest_version"`
-	AppliedMigrations   []AppliedMigration  `json:"applied_migrations"`
-	PendingMigrations   int                 `json:"pending_migrations"`
-	TotalMigrations     int                 `json:"total_migrations"`
-	DatabaseInitialized bool                `json:"database_initialized"`
+	CurrentVersion      int                `json:"current_version"`
+	LatestVersion       int                `json:"latest_version"`
+	AppliedMigrations   []AppliedMigration `json:"applied_migrations"`
+	PendingMigrations   int                `json:"pending_migrations"`
+	TotalMigrations     int                `json:"total_migrations"`
+	DatabaseInitialized bool               `json:"database_initialized"`
 }
 
 // AppliedMigration represents a migration that has been successfully applied

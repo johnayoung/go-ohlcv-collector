@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/johnayoung/go-ohlcv-collector/specs/001-ohlcv-data-collector/contracts"
+	"github.com/stretchr/testify/assert"
 )
 
 // ExchangeAPIError represents API errors from the exchange
@@ -24,13 +24,13 @@ func (e *ExchangeAPIError) Error() string {
 // EnhancedMockExchangeAdapter provides comprehensive mock exchange functionality
 type EnhancedMockExchangeAdapter struct {
 	// Basic fields
-	fetchDelay        time.Duration
-	fetchCallCount    int64
-	shouldFailFetch   bool
-	rateLimitDelay    time.Duration
-	healthCheckFails  bool
-	tradingPairs      []contracts.TradingPair
-	mu                sync.RWMutex
+	fetchDelay       time.Duration
+	fetchCallCount   int64
+	shouldFailFetch  bool
+	rateLimitDelay   time.Duration
+	healthCheckFails bool
+	tradingPairs     []contracts.TradingPair
+	mu               sync.RWMutex
 
 	// Enhanced fields
 	testCandles       []contracts.Candle
@@ -61,7 +61,7 @@ func (e *EnhancedMockExchangeAdapter) SetCandles(candles []contracts.Candle) {
 // FetchCandles overrides the parent method to use test data
 func (e *EnhancedMockExchangeAdapter) FetchCandles(ctx context.Context, req contracts.FetchRequest) (*contracts.FetchResponse, error) {
 	atomic.AddInt64(&e.fetchCallCount, 1)
-	
+
 	// Simulate response delay if set
 	if e.responseDelay > 0 {
 		select {
@@ -101,14 +101,14 @@ func (e *EnhancedMockExchangeAdapter) FetchCandles(ctx context.Context, req cont
 
 		// Match time range - but adjust timestamps for recent requests
 		candleTimestamp := candle.Timestamp
-		
+
 		// If this is a recent request (within 7 days), adjust timestamps to be current
 		// This supports scheduled collection tests that expect fresh data
 		if !req.Start.IsZero() && time.Since(req.Start) < 7*24*time.Hour {
 			// Adjust timestamp to be within the requested range
 			relativeTime := candle.Timestamp.Sub(time.Now().AddDate(0, 0, -30)) // Original test data starts 30 days ago
 			candleTimestamp = req.Start.Add(relativeTime)
-			
+
 			// Ensure it's within the request range
 			if candleTimestamp.Before(req.Start) {
 				candleTimestamp = req.Start

@@ -115,33 +115,33 @@ func (e *StorageError) Unwrap() error {
 type CollectorStatus string
 
 const (
-	StatusStopped    CollectorStatus = "stopped"
-	StatusStarting   CollectorStatus = "starting"
-	StatusRunning    CollectorStatus = "running"
-	StatusStopping   CollectorStatus = "stopping"
-	StatusError      CollectorStatus = "error"
-	StatusDegraded   CollectorStatus = "degraded"
+	StatusStopped  CollectorStatus = "stopped"
+	StatusStarting CollectorStatus = "starting"
+	StatusRunning  CollectorStatus = "running"
+	StatusStopping CollectorStatus = "stopping"
+	StatusError    CollectorStatus = "error"
+	StatusDegraded CollectorStatus = "degraded"
 )
 
 // HealthStatus represents comprehensive health check results for the collector.
 // Includes overall status, component health, error information, and resource usage.
 type HealthStatus struct {
-	Status       CollectorStatus       `json:"status"`
-	Healthy      bool                  `json:"healthy"`
-	LastChecked  time.Time             `json:"last_checked"`
-	Components   map[string]bool       `json:"components"`   // Component health status
-	Errors       []string              `json:"errors"`       // Recent errors
-	Uptime       time.Duration         `json:"uptime"`       // How long collector has been running
-	MemoryUsageMB int64                `json:"memory_usage_mb"`
+	Status        CollectorStatus `json:"status"`
+	Healthy       bool            `json:"healthy"`
+	LastChecked   time.Time       `json:"last_checked"`
+	Components    map[string]bool `json:"components"` // Component health status
+	Errors        []string        `json:"errors"`     // Recent errors
+	Uptime        time.Duration   `json:"uptime"`     // How long collector has been running
+	MemoryUsageMB int64           `json:"memory_usage_mb"`
 }
 
 // ComponentHealth represents the health status of an individual system component.
 // Used to track the health of exchanges, storage, validators, etc.
 type ComponentHealth struct {
-	Name        string        `json:"name"`
-	Healthy     bool          `json:"healthy"`
-	LastChecked time.Time     `json:"last_checked"`
-	LastError   string        `json:"last_error,omitempty"`
+	Name         string        `json:"name"`
+	Healthy      bool          `json:"healthy"`
+	LastChecked  time.Time     `json:"last_checked"`
+	LastError    string        `json:"last_error,omitempty"`
 	ResponseTime time.Duration `json:"response_time"`
 }
 
@@ -276,7 +276,7 @@ func IsCriticalError(err error) bool {
 			"constraint violation",
 			"foreign key",
 		}
-		
+
 		for _, condition := range criticalStorageConditions {
 			if contains(storageErr.Error(), condition) {
 				return true
@@ -308,7 +308,7 @@ func GetErrorCategory(err error) string {
 
 	// Categorize based on error message patterns
 	errMsg := err.Error()
-	
+
 	if contains(errMsg, "timeout") {
 		return "timeout"
 	}
@@ -331,10 +331,10 @@ func GetErrorCategory(err error) string {
 // contains performs a case-insensitive substring check.
 // Used internally for error message pattern matching.
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || 
-		    len(s) > len(substr) && 
-		    (hasSubstring(s, substr)))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			len(s) > len(substr) &&
+				(hasSubstring(s, substr)))
 }
 
 // hasSubstring performs case-insensitive substring matching.
@@ -343,7 +343,7 @@ func hasSubstring(s, substr string) bool {
 	// Simple case-insensitive substring check
 	sLower := make([]byte, len(s))
 	substrLower := make([]byte, len(substr))
-	
+
 	for i, c := range []byte(s) {
 		if c >= 'A' && c <= 'Z' {
 			sLower[i] = c + 32
@@ -351,7 +351,7 @@ func hasSubstring(s, substr string) bool {
 			sLower[i] = c
 		}
 	}
-	
+
 	for i, c := range []byte(substr) {
 		if c >= 'A' && c <= 'Z' {
 			substrLower[i] = c + 32
@@ -359,7 +359,7 @@ func hasSubstring(s, substr string) bool {
 			substrLower[i] = c
 		}
 	}
-	
+
 	return bytesContains(sLower, substrLower)
 }
 
@@ -372,7 +372,7 @@ func bytesContains(b, subslice []byte) bool {
 	if len(subslice) > len(b) {
 		return false
 	}
-	
+
 	for i := 0; i <= len(b)-len(subslice); i++ {
 		if bytesEqual(b[i:i+len(subslice)], subslice) {
 			return true

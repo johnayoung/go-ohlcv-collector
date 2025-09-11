@@ -27,24 +27,24 @@ type MetricsCollector struct {
 	healthCheck HealthChecker
 	startTime   time.Time
 	collectors  []MetricCollector
-	
+
 	// Performance counters
-	requestCount    int64
-	errorCount      int64
-	lastUpdateTime  time.Time
-	updateTicker    *time.Ticker
-	stopChan        chan struct{}
+	requestCount   int64
+	errorCount     int64
+	lastUpdateTime time.Time
+	updateTicker   *time.Ticker
+	stopChan       chan struct{}
 }
 
 // Metric represents a single metric with metadata
 type Metric struct {
-	Name        string                 `json:"name"`
-	Type        MetricType             `json:"type"`
-	Value       float64                `json:"value"`
-	Labels      map[string]string      `json:"labels,omitempty"`
-	Description string                 `json:"description"`
-	UpdatedAt   time.Time              `json:"updated_at"`
-	History     []MetricDataPoint      `json:"history,omitempty"`
+	Name        string            `json:"name"`
+	Type        MetricType        `json:"type"`
+	Value       float64           `json:"value"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Description string            `json:"description"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	History     []MetricDataPoint `json:"history,omitempty"`
 }
 
 // MetricType represents different types of metrics
@@ -77,52 +77,52 @@ type HealthChecker interface {
 
 // HealthStatus represents the health status of a component
 type HealthStatus struct {
-	Status      string            `json:"status"`
-	Timestamp   time.Time         `json:"timestamp"`
-	Duration    time.Duration     `json:"duration"`
-	Details     map[string]string `json:"details,omitempty"`
-	Dependencies []string         `json:"dependencies,omitempty"`
+	Status       string            `json:"status"`
+	Timestamp    time.Time         `json:"timestamp"`
+	Duration     time.Duration     `json:"duration"`
+	Details      map[string]string `json:"details,omitempty"`
+	Dependencies []string          `json:"dependencies,omitempty"`
 }
 
 // MetricsSnapshot represents a snapshot of all metrics at a point in time
 type MetricsSnapshot struct {
-	Timestamp      time.Time         `json:"timestamp"`
-	Uptime         time.Duration     `json:"uptime"`
-	Metrics        map[string]Metric `json:"metrics"`
-	SystemMetrics  SystemMetrics     `json:"system_metrics"`
-	HealthStatus   map[string]HealthStatus `json:"health_status"`
-	RequestCount   int64             `json:"request_count"`
-	ErrorCount     int64             `json:"error_count"`
-	ErrorRate      float64           `json:"error_rate"`
+	Timestamp     time.Time               `json:"timestamp"`
+	Uptime        time.Duration           `json:"uptime"`
+	Metrics       map[string]Metric       `json:"metrics"`
+	SystemMetrics SystemMetrics           `json:"system_metrics"`
+	HealthStatus  map[string]HealthStatus `json:"health_status"`
+	RequestCount  int64                   `json:"request_count"`
+	ErrorCount    int64                   `json:"error_count"`
+	ErrorRate     float64                 `json:"error_rate"`
 }
 
 // SystemMetrics represents system-level metrics
 type SystemMetrics struct {
-	CPUPercent      float64           `json:"cpu_percent"`
-	MemoryUsed      int64             `json:"memory_used"`
-	MemoryPercent   float64           `json:"memory_percent"`
-	GoroutineCount  int               `json:"goroutine_count"`
-	GCPauseNs       uint64            `json:"gc_pause_ns"`
-	NumGC           uint32            `json:"num_gc"`
-	HeapAlloc       uint64            `json:"heap_alloc"`
-	HeapSys         uint64            `json:"heap_sys"`
-	HeapIdle        uint64            `json:"heap_idle"`
-	HeapInuse       uint64            `json:"heap_inuse"`
-	StackInuse      uint64            `json:"stack_inuse"`
-	StackSys        uint64            `json:"stack_sys"`
+	CPUPercent     float64 `json:"cpu_percent"`
+	MemoryUsed     int64   `json:"memory_used"`
+	MemoryPercent  float64 `json:"memory_percent"`
+	GoroutineCount int     `json:"goroutine_count"`
+	GCPauseNs      uint64  `json:"gc_pause_ns"`
+	NumGC          uint32  `json:"num_gc"`
+	HeapAlloc      uint64  `json:"heap_alloc"`
+	HeapSys        uint64  `json:"heap_sys"`
+	HeapIdle       uint64  `json:"heap_idle"`
+	HeapInuse      uint64  `json:"heap_inuse"`
+	StackInuse     uint64  `json:"stack_inuse"`
+	StackSys       uint64  `json:"stack_sys"`
 }
 
 // NewMetricsCollector creates a new metrics collector
 func NewMetricsCollector(cfg config.MetricsConfig, loggerMgr *logger.LoggerManager) *MetricsCollector {
 	componentLogger := loggerMgr.GetComponentLogger("metrics")
-	
+
 	mc := &MetricsCollector{
-		config:      cfg,
-		logger:      componentLogger,
-		metrics:     make(map[string]Metric),
-		startTime:   time.Now(),
-		collectors:  make([]MetricCollector, 0),
-		stopChan:    make(chan struct{}),
+		config:     cfg,
+		logger:     componentLogger,
+		metrics:    make(map[string]Metric),
+		startTime:  time.Now(),
+		collectors: make([]MetricCollector, 0),
+		stopChan:   make(chan struct{}),
 	}
 
 	return mc
@@ -190,9 +190,9 @@ func (mc *MetricsCollector) Stop(ctx context.Context) error {
 func (mc *MetricsCollector) RegisterCollector(collector MetricCollector) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.collectors = append(mc.collectors, collector)
-	mc.logger.Debug("registered metric collector", 
+	mc.logger.Debug("registered metric collector",
 		"metric_names", collector.GetMetricNames())
 }
 
@@ -200,7 +200,7 @@ func (mc *MetricsCollector) RegisterCollector(collector MetricCollector) {
 func (mc *MetricsCollector) RegisterHealthChecker(checker HealthChecker) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.healthCheck = checker
 	mc.logger.Debug("registered health checker")
 }
@@ -234,7 +234,7 @@ func (mc *MetricsCollector) recordMetric(name string, metricType MetricType, val
 	defer mc.mu.Unlock()
 
 	now := time.Now()
-	
+
 	existing, exists := mc.metrics[name]
 	if exists {
 		// Update existing metric
@@ -244,7 +244,7 @@ func (mc *MetricsCollector) recordMetric(name string, metricType MetricType, val
 			existing.Value = value
 		}
 		existing.UpdatedAt = now
-		
+
 		// Add to history (keep last 100 points)
 		existing.History = append(existing.History, MetricDataPoint{
 			Timestamp: now,
@@ -253,7 +253,7 @@ func (mc *MetricsCollector) recordMetric(name string, metricType MetricType, val
 		if len(existing.History) > 100 {
 			existing.History = existing.History[1:]
 		}
-		
+
 		mc.metrics[name] = existing
 	} else {
 		// Create new metric
@@ -357,17 +357,17 @@ func (mc *MetricsCollector) GetSnapshot() MetricsSnapshot {
 	// Get system metrics
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	systemMetrics := SystemMetrics{
 		GoroutineCount: runtime.NumGoroutine(),
-		NumGC:         m.NumGC,
-		GCPauseNs:     m.PauseTotalNs,
-		HeapAlloc:     m.HeapAlloc,
-		HeapSys:       m.HeapSys,
-		HeapIdle:      m.HeapIdle,
-		HeapInuse:     m.HeapInuse,
-		StackInuse:    m.StackInuse,
-		StackSys:      m.StackSys,
+		NumGC:          m.NumGC,
+		GCPauseNs:      m.PauseTotalNs,
+		HeapAlloc:      m.HeapAlloc,
+		HeapSys:        m.HeapSys,
+		HeapIdle:       m.HeapIdle,
+		HeapInuse:      m.HeapInuse,
+		StackInuse:     m.StackInuse,
+		StackSys:       m.StackSys,
 	}
 
 	// Get health status
@@ -391,17 +391,17 @@ func (mc *MetricsCollector) GetSnapshot() MetricsSnapshot {
 // startHTTPServer starts the metrics HTTP server
 func (mc *MetricsCollector) startHTTPServer() error {
 	mux := http.NewServeMux()
-	
+
 	// Metrics endpoint
 	mux.HandleFunc(mc.config.Path, mc.handleMetrics)
-	
+
 	// Health check endpoint
 	mux.HandleFunc("/health", mc.handleHealth)
 	mux.HandleFunc("/ready", mc.handleReadiness)
-	
+
 	// Debug endpoints
 	mux.HandleFunc("/debug/metrics", mc.handleDebugMetrics)
-	
+
 	mc.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", mc.config.Port),
 		Handler: mux,
@@ -420,9 +420,9 @@ func (mc *MetricsCollector) startHTTPServer() error {
 // handleMetrics handles the metrics endpoint
 func (mc *MetricsCollector) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	snapshot := mc.GetSnapshot()
-	
+
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	// Simple format compatible with Prometheus
 	output := make(map[string]interface{})
 	for name, metric := range snapshot.Metrics {
@@ -434,14 +434,14 @@ func (mc *MetricsCollector) handleMetrics(w http.ResponseWriter, r *http.Request
 			"updated_at":  metric.UpdatedAt,
 		}
 	}
-	
+
 	json.NewEncoder(w).Encode(output)
 }
 
 // handleHealth handles the health check endpoint
 func (mc *MetricsCollector) handleHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	
+
 	status := map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now(),
@@ -475,8 +475,8 @@ func (mc *MetricsCollector) handleReadiness(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":     "ready",
-		"timestamp":  time.Now(),
+		"status":      "ready",
+		"timestamp":   time.Now(),
 		"last_update": mc.lastUpdateTime,
 	})
 }
@@ -484,7 +484,7 @@ func (mc *MetricsCollector) handleReadiness(w http.ResponseWriter, r *http.Reque
 // handleDebugMetrics provides detailed metrics for debugging
 func (mc *MetricsCollector) handleDebugMetrics(w http.ResponseWriter, r *http.Request) {
 	snapshot := mc.GetSnapshot()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(snapshot)
 }
@@ -536,7 +536,7 @@ func (cm *CollectorMetrics) CollectMetrics(ctx context.Context) ([]Metric, error
 func (cm *CollectorMetrics) GetMetricNames() []string {
 	return []string{
 		"metrics_collector_uptime",
-		"metrics_collector_metrics_count", 
+		"metrics_collector_metrics_count",
 		"metrics_collector_collectors_count",
 	}
 }

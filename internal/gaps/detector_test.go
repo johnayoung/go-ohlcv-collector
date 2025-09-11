@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -196,42 +195,42 @@ func createContractCandle(timestamp time.Time, pair, interval string) contracts.
 func createContinuousCandles(start time.Time, count int, interval string, pair string) []models.Candle {
 	duration, _ := parseIntervalDuration(interval)
 	candles := make([]models.Candle, count)
-	
+
 	for i := 0; i < count; i++ {
 		timestamp := start.Add(time.Duration(i) * duration)
 		candles[i] = createTestCandle(timestamp, pair, interval)
 	}
-	
+
 	return candles
 }
 
 func createContinuousContractCandles(start time.Time, count int, interval string, pair string) []contracts.Candle {
 	duration, _ := parseIntervalDuration(interval)
 	candles := make([]contracts.Candle, count)
-	
+
 	for i := 0; i < count; i++ {
 		timestamp := start.Add(time.Duration(i) * duration)
 		candles[i] = createContractCandle(timestamp, pair, interval)
 	}
-	
+
 	return candles
 }
 
 // TestGapDetectorImpl_DetectGaps tests the main gap detection functionality
 func TestGapDetectorImpl_DetectGaps(t *testing.T) {
 	tests := []struct {
-		name           string
-		pair           string
-		interval       string
-		startTime      time.Time
-		endTime        time.Time
-		existingCandles []models.Candle
+		name              string
+		pair              string
+		interval          string
+		startTime         time.Time
+		endTime           time.Time
+		existingCandles   []models.Candle
 		validatorResponse struct {
 			isValid bool
 			reason  string
 			err     error
 		}
-		expectedGaps int
+		expectedGaps  int
 		expectedError bool
 	}{
 		{
@@ -309,11 +308,11 @@ func TestGapDetectorImpl_DetectGaps(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:      "invalid interval",
-			pair:      "BTC-USD",
-			interval:  "invalid",
-			startTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			endTime:   time.Date(2024, 1, 1, 1, 0, 0, 0, time.UTC),
+			name:          "invalid interval",
+			pair:          "BTC-USD",
+			interval:      "invalid",
+			startTime:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			endTime:       time.Date(2024, 1, 1, 1, 0, 0, 0, time.UTC),
 			expectedGaps:  0,
 			expectedError: true,
 		},
@@ -324,7 +323,7 @@ func TestGapDetectorImpl_DetectGaps(t *testing.T) {
 			// Setup mocks
 			mockStorage := new(MockStorage)
 			mockValidator := new(MockGapValidator)
-			
+
 			if !tt.expectedError {
 				// Setup storage query expectation
 				queryResponse := &storage.QueryResponse{
@@ -332,13 +331,13 @@ func TestGapDetectorImpl_DetectGaps(t *testing.T) {
 					Total:   len(tt.existingCandles),
 				}
 				mockStorage.On("Query", mock.Anything, mock.AnythingOfType("storage.QueryRequest")).Return(queryResponse, nil)
-				
+
 				if tt.expectedGaps > 0 {
 					// Setup validator expectations
 					mockValidator.On("IsValidGapPeriod", mock.Anything, tt.pair, mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), tt.interval).Return(
 						tt.validatorResponse.isValid, tt.validatorResponse.reason, tt.validatorResponse.err,
 					)
-					
+
 					// Setup storage gap expectations
 					mockStorage.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Times(tt.expectedGaps)
 				}
@@ -360,7 +359,7 @@ func TestGapDetectorImpl_DetectGaps(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, gaps, tt.expectedGaps)
-				
+
 				// Verify gap properties
 				for _, gap := range gaps {
 					assert.Equal(t, tt.pair, gap.Pair)
@@ -467,7 +466,7 @@ func TestGapDetectorImpl_DetectGapsInSequence(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, gaps, tt.expectedGaps)
-				
+
 				// Verify gap properties
 				for _, gap := range gaps {
 					assert.Equal(t, tt.expectedInterval, gap.Interval)
@@ -502,7 +501,7 @@ func TestGapDetectorImpl_DetectRecentGaps(t *testing.T) {
 				// Calculate expected time range
 				now := time.Now().UTC()
 				startTime := now.Add(-24 * time.Hour)
-				
+
 				// Create candles with gaps
 				candles := []models.Candle{
 					createTestCandle(startTime, "BTC-USD", "1h"),
@@ -510,16 +509,16 @@ func TestGapDetectorImpl_DetectRecentGaps(t *testing.T) {
 					// Gap at startTime + 2h
 					createTestCandle(startTime.Add(3*time.Hour), "BTC-USD", "1h"),
 				}
-				
+
 				queryResponse := &storage.QueryResponse{
 					Candles: candles,
 					Total:   len(candles),
 				}
-				
+
 				ms.On("Query", mock.Anything, mock.MatchedBy(func(req storage.QueryRequest) bool {
 					return req.Pair == "BTC-USD" && req.Interval == "1h"
 				})).Return(queryResponse, nil)
-				
+
 				mv.On("IsValidGapPeriod", mock.Anything, "BTC-USD", mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), "1h").Return(true, "", nil)
 				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil)
 			},
@@ -534,15 +533,15 @@ func TestGapDetectorImpl_DetectRecentGaps(t *testing.T) {
 			mockSetup: func(ms *MockStorage, mv *MockGapValidator) {
 				now := time.Now().UTC()
 				startTime := now.Add(-time.Hour)
-				
+
 				// Create continuous candles
 				candles := createContinuousCandles(startTime, 12, "5m", "ETH-USD")
-				
+
 				queryResponse := &storage.QueryResponse{
 					Candles: candles,
 					Total:   len(candles),
 				}
-				
+
 				ms.On("Query", mock.Anything, mock.MatchedBy(func(req storage.QueryRequest) bool {
 					return req.Pair == "ETH-USD" && req.Interval == "5m"
 				})).Return(queryResponse, nil)
@@ -567,7 +566,7 @@ func TestGapDetectorImpl_DetectRecentGaps(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage := new(MockStorage)
 			mockValidator := new(MockGapValidator)
-			
+
 			if tt.mockSetup != nil {
 				tt.mockSetup(mockStorage, mockValidator)
 			}
@@ -596,15 +595,15 @@ func TestGapDetectorImpl_DetectRecentGaps(t *testing.T) {
 // TestGapDetectorImpl_ValidateGapPeriod tests gap validation functionality
 func TestGapDetectorImpl_ValidateGapPeriod(t *testing.T) {
 	tests := []struct {
-		name      string
-		pair      string
-		startTime time.Time
-		endTime   time.Time
-		interval  string
-		mockSetup func(*MockGapValidator)
-		expectedValid bool
+		name           string
+		pair           string
+		startTime      time.Time
+		endTime        time.Time
+		interval       string
+		mockSetup      func(*MockGapValidator)
+		expectedValid  bool
 		expectedReason string
-		expectedError bool
+		expectedError  bool
 	}{
 		{
 			name:      "valid gap period",
@@ -615,9 +614,9 @@ func TestGapDetectorImpl_ValidateGapPeriod(t *testing.T) {
 			mockSetup: func(mv *MockGapValidator) {
 				mv.On("IsValidGapPeriod", mock.Anything, "BTC-USD", mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), "1h").Return(true, "", nil)
 			},
-			expectedValid: true,
+			expectedValid:  true,
 			expectedReason: "",
-			expectedError: false,
+			expectedError:  false,
 		},
 		{
 			name:      "gap too recent",
@@ -628,9 +627,9 @@ func TestGapDetectorImpl_ValidateGapPeriod(t *testing.T) {
 			mockSetup: func(mv *MockGapValidator) {
 				mv.On("IsValidGapPeriod", mock.Anything, "ETH-USD", mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), "5m").Return(false, "gap too recent", nil)
 			},
-			expectedValid: false,
+			expectedValid:  false,
 			expectedReason: "gap too recent",
-			expectedError: false,
+			expectedError:  false,
 		},
 		{
 			name:      "validator error",
@@ -641,16 +640,16 @@ func TestGapDetectorImpl_ValidateGapPeriod(t *testing.T) {
 			mockSetup: func(mv *MockGapValidator) {
 				mv.On("IsValidGapPeriod", mock.Anything, "BTC-USD", mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), "1h").Return(false, "", errors.New("validation error"))
 			},
-			expectedValid: false,
+			expectedValid:  false,
 			expectedReason: "",
-			expectedError: true,
+			expectedError:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockValidator := new(MockGapValidator)
-			
+
 			if tt.mockSetup != nil {
 				tt.mockSetup(mockValidator)
 			}
@@ -678,23 +677,23 @@ func TestGapDetectorImpl_ValidateGapPeriod(t *testing.T) {
 // TestBackfillerImpl_StartGapFilling tests individual gap filling functionality
 func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 	tests := []struct {
-		name      string
-		gapID     string
-		mockSetup func(*MockStorage, *MockExchangeAdapter)
+		name          string
+		gapID         string
+		mockSetup     func(*MockStorage, *MockExchangeAdapter)
 		expectedError bool
 	}{
 		{
 			name:  "successful gap filling",
 			gapID: "gap-1",
 			mockSetup: func(ms *MockStorage, me *MockExchangeAdapter) {
-				gap, _ := models.NewGap("gap-1", "BTC-USD", 
+				gap, _ := models.NewGap("gap-1", "BTC-USD",
 					time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
 					time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 					"1h")
-				
+
 				ms.On("GetGapByID", mock.Anything, "gap-1").Return(gap, nil)
 				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Twice() // Once for filling status, once for failure/success
-				
+
 				// Mock successful exchange fetch
 				candles := []contracts.Candle{
 					createContractCandle(time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC), "BTC-USD", "1h"),
@@ -704,7 +703,7 @@ func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 					Candles: candles,
 				}
 				me.On("FetchCandles", mock.Anything, mock.AnythingOfType("contracts.FetchRequest")).Return(response, nil)
-				
+
 				ms.On("Store", mock.Anything, mock.AnythingOfType("[]models.Candle")).Return(nil)
 				ms.On("MarkGapFilled", mock.Anything, "gap-1", mock.AnythingOfType("time.Time")).Return(nil)
 			},
@@ -722,14 +721,14 @@ func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 			name:  "exchange fetch error",
 			gapID: "gap-2",
 			mockSetup: func(ms *MockStorage, me *MockExchangeAdapter) {
-				gap, _ := models.NewGap("gap-2", "BTC-USD", 
+				gap, _ := models.NewGap("gap-2", "BTC-USD",
 					time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
 					time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 					"1h")
-				
+
 				ms.On("GetGapByID", mock.Anything, "gap-2").Return(gap, nil)
 				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Twice()
-				
+
 				me.On("FetchCandles", mock.Anything, mock.AnythingOfType("contracts.FetchRequest")).Return(nil, errors.New("exchange error"))
 			},
 			expectedError: true,
@@ -738,11 +737,11 @@ func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 			name:  "storage error during gap update",
 			gapID: "gap-3",
 			mockSetup: func(ms *MockStorage, me *MockExchangeAdapter) {
-				gap, _ := models.NewGap("gap-3", "BTC-USD", 
+				gap, _ := models.NewGap("gap-3", "BTC-USD",
 					time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
 					time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 					"1h")
-				
+
 				ms.On("GetGapByID", mock.Anything, "gap-3").Return(gap, nil)
 				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(errors.New("storage error"))
 			},
@@ -754,7 +753,7 @@ func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage := new(MockStorage)
 			mockExchange := new(MockExchangeAdapter)
-			
+
 			if tt.mockSetup != nil {
 				tt.mockSetup(mockStorage, mockExchange)
 			}
@@ -798,11 +797,11 @@ func TestBackfillerImpl_FillGapWithData(t *testing.T) {
 				createContractCandle(time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC), "BTC-USD", "1h"),
 			},
 			mockSetup: func(ms *MockStorage) {
-				gap, _ := models.NewGap("gap-1", "BTC-USD", 
+				gap, _ := models.NewGap("gap-1", "BTC-USD",
 					time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
 					time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 					"1h")
-				
+
 				ms.On("GetGapByID", mock.Anything, "gap-1").Return(gap, nil)
 				ms.On("Store", mock.Anything, mock.AnythingOfType("[]models.Candle")).Return(nil)
 				ms.On("MarkGapFilled", mock.Anything, "gap-1", mock.AnythingOfType("time.Time")).Return(nil)
@@ -814,11 +813,11 @@ func TestBackfillerImpl_FillGapWithData(t *testing.T) {
 			gapID:   "gap-2",
 			candles: []contracts.Candle{},
 			mockSetup: func(ms *MockStorage) {
-				gap, _ := models.NewGap("gap-2", "BTC-USD", 
+				gap, _ := models.NewGap("gap-2", "BTC-USD",
 					time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
 					time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 					"1h")
-				
+
 				ms.On("GetGapByID", mock.Anything, "gap-2").Return(gap, nil)
 				ms.On("Store", mock.Anything, mock.AnythingOfType("[]models.Candle")).Return(nil)
 				ms.On("MarkGapFilled", mock.Anything, "gap-2", mock.AnythingOfType("time.Time")).Return(nil)
@@ -832,11 +831,11 @@ func TestBackfillerImpl_FillGapWithData(t *testing.T) {
 				createContractCandle(time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC), "BTC-USD", "1h"),
 			},
 			mockSetup: func(ms *MockStorage) {
-				gap, _ := models.NewGap("gap-3", "BTC-USD", 
+				gap, _ := models.NewGap("gap-3", "BTC-USD",
 					time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
 					time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 					"1h")
-				
+
 				ms.On("GetGapByID", mock.Anything, "gap-3").Return(gap, nil)
 				ms.On("Store", mock.Anything, mock.AnythingOfType("[]models.Candle")).Return(errors.New("storage error"))
 			},
@@ -847,7 +846,7 @@ func TestBackfillerImpl_FillGapWithData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage := new(MockStorage)
-			
+
 			if tt.mockSetup != nil {
 				tt.mockSetup(mockStorage)
 			}
@@ -876,16 +875,16 @@ func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 		isRunning: true,
 		metrics: &BackfillMetrics{
 			TotalGapsProcessed: 10,
-			GapsFilled:        7,
-			GapsFailed:        3,
-			CandlesRetrieved:  150,
-			LastBackfillRun:   time.Now().UTC(),
+			GapsFilled:         7,
+			GapsFailed:         3,
+			CandlesRetrieved:   150,
+			LastBackfillRun:    time.Now().UTC(),
 		},
 		logger: slog.Default(),
 	}
 
 	progress, err := backfiller.GetBackfillProgress(context.Background())
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, progress)
 	assert.True(t, progress.Active)
@@ -935,12 +934,12 @@ func TestBackfillerImpl_StopBackfill(t *testing.T) {
 // TestGapValidatorImpl_IsValidGapPeriod tests gap period validation
 func TestGapValidatorImpl_IsValidGapPeriod(t *testing.T) {
 	tests := []struct {
-		name        string
-		pair        string
-		start       time.Time
-		end         time.Time
-		interval    string
-		expectValid bool
+		name         string
+		pair         string
+		start        time.Time
+		end          time.Time
+		interval     string
+		expectValid  bool
 		expectReason string
 		expectError  bool
 	}{
@@ -1008,11 +1007,11 @@ func TestGapValidatorImpl_IsValidGapPeriod(t *testing.T) {
 // TestGapValidatorImpl_ShouldIgnoreGap tests gap ignore logic
 func TestGapValidatorImpl_ShouldIgnoreGap(t *testing.T) {
 	tests := []struct {
-		name           string
-		gap            *models.Gap
-		expectIgnore   bool
-		expectReason   string
-		expectError    bool
+		name         string
+		gap          *models.Gap
+		expectIgnore bool
+		expectReason string
+		expectError  bool
 	}{
 		{
 			name: "normal gap - should not ignore",
@@ -1183,9 +1182,9 @@ func TestGapValidatorImpl_ValidateGapData(t *testing.T) {
 // TestParseIntervalDuration tests interval parsing functionality
 func TestParseIntervalDuration(t *testing.T) {
 	tests := []struct {
-		name     string
-		interval string
-		expected time.Duration
+		name        string
+		interval    string
+		expected    time.Duration
 		expectError bool
 	}{
 		{"1 minute", "1m", time.Minute, false},
@@ -1282,7 +1281,7 @@ func TestConcurrentGapDetection(t *testing.T) {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			
+
 			gaps, err := detector.DetectGaps(
 				context.Background(),
 				"BTC-USD",
@@ -1290,12 +1289,12 @@ func TestConcurrentGapDetection(t *testing.T) {
 				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
 			)
-			
+
 			if err != nil {
 				errors <- err
 				return
 			}
-			
+
 			gapCounts <- len(gaps)
 		}(i)
 	}
@@ -1369,7 +1368,7 @@ func TestLargeDatasetPerformance(t *testing.T) {
 	duration := time.Since(start)
 
 	require.NoError(t, err)
-	
+
 	// Should detect approximately numCandles/100 gaps
 	expectedGaps := numCandles / 100
 	assert.InDelta(t, expectedGaps, len(gaps), float64(expectedGaps)*0.1, "Gap count should be within 10% of expected")
@@ -1387,13 +1386,13 @@ func TestLargeDatasetPerformance(t *testing.T) {
 // TestWeekendAndHolidayGaps tests gap detection during non-trading periods
 func TestWeekendAndHolidayGaps(t *testing.T) {
 	tests := []struct {
-		name        string
-		startTime   time.Time
-		endTime     time.Time
-		interval    string
-		candles     []models.Candle
+		name          string
+		startTime     time.Time
+		endTime       time.Time
+		interval      string
+		candles       []models.Candle
 		mockValidator func(*MockGapValidator)
-		expectedGaps int
+		expectedGaps  int
 	}{
 		{
 			name:      "weekend gap should be ignored",
@@ -1441,7 +1440,7 @@ func TestWeekendAndHolidayGaps(t *testing.T) {
 			}
 
 			mockStorage.On("Query", mock.Anything, mock.AnythingOfType("storage.QueryRequest")).Return(queryResponse, nil)
-			
+
 			if tt.mockValidator != nil {
 				tt.mockValidator(mockValidator)
 			}
@@ -1513,12 +1512,12 @@ func TestBoundaryConditions(t *testing.T) {
 			expectedGaps: 0, // Perfect match, no gaps
 		},
 		{
-			name:      "single timestamp range",
-			startTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			endTime:   time.Date(2024, 1, 1, 1, 0, 0, 0, time.UTC),
-			interval:  "1h",
-			candles:   []models.Candle{}, // No candles
-			expectedGaps: 1, // Should detect one gap for the single expected candle
+			name:         "single timestamp range",
+			startTime:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			endTime:      time.Date(2024, 1, 1, 1, 0, 0, 0, time.UTC),
+			interval:     "1h",
+			candles:      []models.Candle{}, // No candles
+			expectedGaps: 1,                 // Should detect one gap for the single expected candle
 		},
 	}
 
@@ -1533,7 +1532,7 @@ func TestBoundaryConditions(t *testing.T) {
 			}
 
 			mockStorage.On("Query", mock.Anything, mock.AnythingOfType("storage.QueryRequest")).Return(queryResponse, nil)
-			
+
 			if tt.expectedGaps > 0 {
 				mockValidator.On("IsValidGapPeriod", mock.Anything, "BTC-USD", mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), tt.interval).Return(true, "", nil)
 				mockStorage.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Times(tt.expectedGaps)
@@ -1695,38 +1694,38 @@ func TestErrorHandling(t *testing.T) {
 // TestGapPriorityAndClassification tests gap priority assignment
 func TestGapPriorityAndClassification(t *testing.T) {
 	tests := []struct {
-		name            string
-		gapStart        time.Time
-		gapEnd          time.Time
-		createdAt       time.Time
+		name             string
+		gapStart         time.Time
+		gapEnd           time.Time
+		createdAt        time.Time
 		expectedPriority models.GapPriority
 	}{
 		{
-			name:            "recent short gap - low priority",
-			gapStart:        time.Now().UTC().Add(-30 * time.Minute),
-			gapEnd:          time.Now().UTC().Add(-15 * time.Minute),
-			createdAt:       time.Now().UTC().Add(-30 * time.Minute),
+			name:             "recent short gap - low priority",
+			gapStart:         time.Now().UTC().Add(-30 * time.Minute),
+			gapEnd:           time.Now().UTC().Add(-15 * time.Minute),
+			createdAt:        time.Now().UTC().Add(-30 * time.Minute),
 			expectedPriority: models.PriorityLow,
 		},
 		{
-			name:            "old gap - high priority",
-			gapStart:        time.Now().UTC().Add(-48 * time.Hour),
-			gapEnd:          time.Now().UTC().Add(-47 * time.Hour),
-			createdAt:       time.Now().UTC().Add(-48 * time.Hour),
+			name:             "old gap - high priority",
+			gapStart:         time.Now().UTC().Add(-48 * time.Hour),
+			gapEnd:           time.Now().UTC().Add(-47 * time.Hour),
+			createdAt:        time.Now().UTC().Add(-48 * time.Hour),
 			expectedPriority: models.PriorityHigh,
 		},
 		{
-			name:            "very old gap - critical priority",
-			gapStart:        time.Now().UTC().Add(-8 * 24 * time.Hour),
-			gapEnd:          time.Now().UTC().Add(-8*24*time.Hour + time.Hour),
-			createdAt:       time.Now().UTC().Add(-8 * 24 * time.Hour),
+			name:             "very old gap - critical priority",
+			gapStart:         time.Now().UTC().Add(-8 * 24 * time.Hour),
+			gapEnd:           time.Now().UTC().Add(-8*24*time.Hour + time.Hour),
+			createdAt:        time.Now().UTC().Add(-8 * 24 * time.Hour),
 			expectedPriority: models.PriorityCritical,
 		},
 		{
-			name:            "long gap - critical priority",
-			gapStart:        time.Now().UTC().Add(-8 * 24 * time.Hour),
-			gapEnd:          time.Now().UTC().Add(-1 * 24 * time.Hour), // 7-day gap
-			createdAt:       time.Now().UTC().Add(-2 * time.Hour),
+			name:             "long gap - critical priority",
+			gapStart:         time.Now().UTC().Add(-8 * 24 * time.Hour),
+			gapEnd:           time.Now().UTC().Add(-1 * 24 * time.Hour), // 7-day gap
+			createdAt:        time.Now().UTC().Add(-2 * time.Hour),
 			expectedPriority: models.PriorityCritical,
 		},
 	}
