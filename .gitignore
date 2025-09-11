@@ -1,0 +1,121 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+*.test
+*.prof
+*.out
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+# Go modules cache
+*.sum.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build directories and artifacts
+build/
+dist/
+bin/
+*.o
+*.a
+
+# Log files
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage reports
+coverage.txt
+coverage.html
+*.cover
+c.out
+
+# Profiling data
+cpu.prof
+mem.prof
+block.prof
+mutex.prof
+
+# Benchmarking output
+bench.txt
+*.bench
+
+# Database files (if using embedded databases for testing)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker
+.dockerignore
+
+# Node.js (if using for tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Local development
+.local/
+.cache/
+
+# Documentation build outputs
+docs/_build/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Claude AI context (if you want to exclude it)
+# .claude/
+
+# Project-specific ignores
+# Add any project-specific files or directories that should be ignored
