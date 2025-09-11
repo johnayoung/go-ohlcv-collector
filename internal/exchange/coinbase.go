@@ -23,12 +23,12 @@ import (
 )
 
 const (
-	// Coinbase Advanced Trade API base URL
-	coinbaseBaseURL = "https://api.coinbase.com"
+	// Coinbase Exchange API base URL (public endpoints)
+	coinbaseBaseURL = "https://api.exchange.coinbase.com"
 
 	// API endpoints
-	productsEndpoint = "/api/v3/brokerage/products"
-	candlesEndpoint  = "/api/v3/brokerage/products/%s/candles"
+	productsEndpoint = "/products"
+	candlesEndpoint  = "/products/%s/candles"
 
 	// Rate limiting configuration
 	maxRequestsPerSecond = 10
@@ -395,15 +395,62 @@ func (c *CoinbaseAdapter) fetchCandleChunk(ctx context.Context, pair string, sta
 		return nil, err
 	}
 
-	var apiResponse struct {
-		Candles []coinbaseCandle `json:"candles"`
-	}
-
-	if err := json.Unmarshal(response, &apiResponse); err != nil {
+	// Coinbase Exchange API returns an array of arrays: [timestamp, low, high, open, close, volume]
+	var rawCandles [][]interface{}
+	if err := json.Unmarshal(response, &rawCandles); err != nil {
 		return nil, fmt.Errorf("failed to parse candles response: %w", err)
 	}
 
-	return apiResponse.Candles, nil
+	// Convert raw arrays to coinbaseCandle structs
+	candles := make([]coinbaseCandle, 0, len(rawCandles))
+	for _, raw := range rawCandles {
+		if len(raw) != 6 {
+			c.logger.Warn("invalid candle data format", "length", len(raw))
+			continue
+		}
+
+		// Convert interface{} values to proper types
+		timestamp, ok1 := raw[0].(float64)
+		low, ok2 := convertToString(raw[1])
+		high, ok3 := convertToString(raw[2]) 
+		open, ok4 := convertToString(raw[3])
+		close, ok5 := convertToString(raw[4])
+		volume, ok6 := convertToString(raw[5])
+
+
+		if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 || !ok6 {
+			c.logger.Warn("failed to convert candle data types")
+			continue
+		}
+
+		candles = append(candles, coinbaseCandle{
+			Start:  int64(timestamp),
+			Low:    low,
+			High:   high,
+			Open:   open,
+			Close:  close,
+			Volume: volume,
+		})
+	}
+
+	return candles, nil
+}
+
+// convertToString safely converts interface{} values from JSON to string representation
+// Handles both string and numeric types that may come from the JSON API
+func convertToString(val interface{}) (string, bool) {
+	switch v := val.(type) {
+	case string:
+		return v, true
+	case float64:
+		return fmt.Sprintf("%.8f", v), true
+	case int64:
+		return fmt.Sprintf("%d", v), true
+	case int:
+		return fmt.Sprintf("%d", v), true
+	default:
+		return "", false
+	}
 }
 
 // makeRequestWithRetry executes HTTP requests with exponential backoff retry logic.
@@ -565,7 +612,7 @@ func (c *CoinbaseAdapter) convertCandleToModel(candle coinbaseCandle, pair, inte
 
 	return models.NewCandle(
 		timestamp,
-		candle.Low,
+		candle.Open,
 		candle.High,
 		candle.Low,
 		candle.Close,

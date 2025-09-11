@@ -136,11 +136,11 @@ func (d *DuckDBStorage) createCandlesTable(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS candles (
 		timestamp TIMESTAMPTZ NOT NULL,
-		open DECIMAL(18,8) NOT NULL,
-		high DECIMAL(18,8) NOT NULL,
-		low DECIMAL(18,8) NOT NULL,
-		close DECIMAL(18,8) NOT NULL,
-		volume DECIMAL(18,8) NOT NULL,
+		open DOUBLE NOT NULL,
+		high DOUBLE NOT NULL,
+		low DOUBLE NOT NULL,
+		close DOUBLE NOT NULL,
+		volume DOUBLE NOT NULL,
 		pair VARCHAR NOT NULL,
 		interval VARCHAR NOT NULL,
 		created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -313,6 +313,7 @@ func (d *DuckDBStorage) appendCandle(appender *duckdb.Appender, candle models.Ca
 	lowFloat, _ := low.Float64()
 	closeFloat, _ := close.Float64()
 	volumeFloat, _ := volume.Float64()
+
 
 	// Append row to DuckDB
 	if err := appender.AppendRow(
