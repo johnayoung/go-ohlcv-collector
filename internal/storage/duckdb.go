@@ -226,8 +226,17 @@ func (d *DuckDBStorage) StoreBatch(ctx context.Context, candles []models.Candle)
 		}
 	}
 
+	// Check if database is available
+	d.mu.RLock()
+	db := d.db
+	d.mu.RUnlock()
+	
+	if db == nil {
+		return NewInsertError("candles", fmt.Errorf("database connection is closed"))
+	}
+
 	// Get connection and create appender
-	conn, err := d.db.Conn(ctx)
+	conn, err := db.Conn(ctx)
 	if err != nil {
 		return NewInsertError("candles", fmt.Errorf("failed to get connection: %w", err))
 	}
@@ -276,7 +285,7 @@ func (d *DuckDBStorage) StoreBatch(ctx context.Context, candles []models.Candle)
 
 // appendCandle appends a single candle to the DuckDB appender
 func (d *DuckDBStorage) appendCandle(appender *duckdb.Appender, candle models.Candle) error {
-	// Parse decimal values for proper storage
+	// Parse decimal values and convert to float64 for DuckDB Appender API
 	open, err := decimal.NewFromString(candle.Open)
 	if err != nil {
 		return fmt.Errorf("invalid open price: %w", err)
@@ -298,14 +307,21 @@ func (d *DuckDBStorage) appendCandle(appender *duckdb.Appender, candle models.Ca
 		return fmt.Errorf("invalid volume: %w", err)
 	}
 
+	// Convert decimals to float64 for DuckDB Appender API
+	openFloat, _ := open.Float64()
+	highFloat, _ := high.Float64()
+	lowFloat, _ := low.Float64()
+	closeFloat, _ := close.Float64()
+	volumeFloat, _ := volume.Float64()
+
 	// Append row to DuckDB
 	if err := appender.AppendRow(
 		candle.Timestamp,
-		open,
-		high,
-		low,
-		close,
-		volume,
+		openFloat,
+		highFloat,
+		lowFloat,
+		closeFloat,
+		volumeFloat,
 		candle.Pair,
 		candle.Interval,
 		time.Now().UTC(),
@@ -314,6 +330,27 @@ func (d *DuckDBStorage) appendCandle(appender *duckdb.Appender, candle models.Ca
 	}
 
 	return nil
+}
+
+// convertDecimalToString converts DuckDB decimal types to string representation
+func (d *DuckDBStorage) convertDecimalToString(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case float64:
+		return fmt.Sprintf("%.8f", v)
+	case float32:
+		return fmt.Sprintf("%.8f", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case int32:
+		return fmt.Sprintf("%d", v)
+	case int:
+		return fmt.Sprintf("%d", v)
+	default:
+		// For DuckDB decimal types or other unknown types, convert to string
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // Query implements CandleReader.Query
@@ -352,20 +389,28 @@ func (d *DuckDBStorage) Query(ctx context.Context, req QueryRequest) (*QueryResp
 	for rows.Next() {
 		var candle models.Candle
 		var createdAt time.Time
+		var open, high, low, close, volume interface{}
 		
 		if err := rows.Scan(
 			&candle.Timestamp,
-			&candle.Open,
-			&candle.High,
-			&candle.Low,
-			&candle.Close,
-			&candle.Volume,
+			&open,
+			&high,
+			&low,
+			&close,
+			&volume,
 			&candle.Pair,
 			&candle.Interval,
 			&createdAt,
 		); err != nil {
 			return nil, NewQueryError("candles", query, fmt.Errorf("failed to scan row: %w", err))
 		}
+		
+		// Convert DuckDB decimal types to string
+		candle.Open = d.convertDecimalToString(open)
+		candle.High = d.convertDecimalToString(high)
+		candle.Low = d.convertDecimalToString(low)
+		candle.Close = d.convertDecimalToString(close)
+		candle.Volume = d.convertDecimalToString(volume)
 		
 		candles = append(candles, candle)
 	}
@@ -512,14 +557,15 @@ func (d *DuckDBStorage) GetLatest(ctx context.Context, pair string, interval str
 
 	var candle models.Candle
 	var createdAt time.Time
+	var open, high, low, close, volume interface{}
 
 	err := d.db.QueryRowContext(ctx, query, pair, interval).Scan(
 		&candle.Timestamp,
-		&candle.Open,
-		&candle.High,
-		&candle.Low,
-		&candle.Close,
-		&candle.Volume,
+		&open,
+		&high,
+		&low,
+		&close,
+		&volume,
 		&candle.Pair,
 		&candle.Interval,
 		&createdAt,
@@ -531,6 +577,13 @@ func (d *DuckDBStorage) GetLatest(ctx context.Context, pair string, interval str
 	if err != nil {
 		return nil, NewQueryError("candles", query, fmt.Errorf("failed to get latest candle: %w", err))
 	}
+
+	// Convert DuckDB decimal types to string
+	candle.Open = d.convertDecimalToString(open)
+	candle.High = d.convertDecimalToString(high)
+	candle.Low = d.convertDecimalToString(low)
+	candle.Close = d.convertDecimalToString(close)
+	candle.Volume = d.convertDecimalToString(volume)
 
 	return &candle, nil
 }
@@ -909,9 +962,17 @@ func (d *DuckDBStorage) HealthCheck(ctx context.Context) error {
 		d.recordQueryTime("health_check", time.Since(start))
 	}()
 
+	d.mu.RLock()
+	db := d.db
+	d.mu.RUnlock()
+
+	if db == nil {
+		return NewStorageError("health_check", "", "", fmt.Errorf("database health check failed: database connection is closed"))
+	}
+
 	// Simple query to verify database is accessible
 	var result int
-	if err := d.db.QueryRowContext(ctx, "SELECT 1").Scan(&result); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT 1").Scan(&result); err != nil {
 		return NewStorageError("health_check", "", "SELECT 1", fmt.Errorf("database health check failed: %w", err))
 	}
 
