@@ -502,7 +502,15 @@ func (bf *BackfillerImpl) GetBackfillProgress(ctx context.Context) (*BackfillSta
 	fillingGaps := []models.Gap{}
 
 	bf.metrics.mu.RLock()
-	metrics := *bf.metrics
+	metrics := BackfillMetrics{
+		TotalGapsProcessed:  bf.metrics.TotalGapsProcessed,
+		GapsFilled:          bf.metrics.GapsFilled,
+		GapsFailed:          bf.metrics.GapsFailed,
+		GapsMarkedPermanent: bf.metrics.GapsMarkedPermanent,
+		CandlesRetrieved:    bf.metrics.CandlesRetrieved,
+		TotalProcessingTime: bf.metrics.TotalProcessingTime,
+		LastBackfillRun:     bf.metrics.LastBackfillRun,
+	}
 	bf.metrics.mu.RUnlock()
 
 	successRate := float64(0)
