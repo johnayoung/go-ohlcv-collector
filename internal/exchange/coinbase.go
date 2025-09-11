@@ -186,7 +186,6 @@ func (c *CoinbaseAdapter) GetTradingPairs(ctx context.Context) ([]TradingPair, e
 	}
 
 	requestURL := c.baseURL + productsEndpoint
-
 	response, err := c.makeRequestWithRetry(ctx, "GET", requestURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch trading pairs: %w", err)
@@ -274,7 +273,7 @@ func (c *CoinbaseAdapter) HealthCheck(ctx context.Context) error {
 	// Use a lightweight endpoint to check health
 	requestURL := c.baseURL + productsEndpoint + "?limit=1"
 
-	req, err := http.NewRequestWithContext(healthCtx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(healthCtx, "GET", requestURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create health check request: %w", err)
 	}

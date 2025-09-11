@@ -233,8 +233,22 @@ func (d *DuckDBStorage) StoreBatch(ctx context.Context, candles []models.Candle)
 	}
 	defer conn.Close()
 
+	// Get the underlying driver connection
+	var driverConn *duckdb.Conn
+	err = conn.Raw(func(dc interface{}) error {
+		var ok bool
+		driverConn, ok = dc.(*duckdb.Conn)
+		if !ok {
+			return fmt.Errorf("underlying connection is not a DuckDB connection")
+		}
+		return nil
+	})
+	if err != nil {
+		return NewInsertError("candles", fmt.Errorf("failed to get DuckDB connection: %w", err))
+	}
+
 	// Create DuckDB appender for bulk insert
-	appender, err := duckdb.NewAppenderFromConn(conn, "", "candles")
+	appender, err := duckdb.NewAppenderFromConn(driverConn, "", "candles")
 	if err != nil {
 		return NewInsertError("candles", fmt.Errorf("failed to create appender: %w", err))
 	}

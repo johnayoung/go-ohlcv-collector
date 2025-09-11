@@ -262,7 +262,7 @@ func (v *OHLCVValidator) ValidateCandle(ctx context.Context, candle contracts.Ca
 
 	// Update severity based on anomalies
 	for _, anomaly := range result.Anomalies {
-		if models.ShouldEscalateSeverity(result.Severity, anomaly.Severity) {
+		if ShouldEscalateSeverity(result.Severity, anomaly.Severity) {
 			result.Severity = anomaly.Severity
 		}
 	}
@@ -624,10 +624,8 @@ func (v *OHLCVValidator) ProcessBatch(ctx context.Context, candles []contracts.C
 
 	// Calculate overall quality metrics
 	var validationResults []*models.ValidationResult
-	for _, batchResult := range allBatchResults {
-		// Convert from batch results - this is a simplified approach
-		// In a real implementation, you might want to preserve the actual ValidationResult objects
-	}
+	// Convert from batch results - this is a simplified approach
+	// In a real implementation, you might want to preserve the actual ValidationResult objects
 
 	qualityMetrics, err := v.GetQualityMetrics(ctx, validationResults)
 	if err != nil {
@@ -635,7 +633,7 @@ func (v *OHLCVValidator) ProcessBatch(ctx context.Context, candles []contracts.C
 		qualityMetrics = &DataQualityMetrics{
 			TotalCandles:     int64(totalCandles),
 			ValidCandles:     totalValid,
-			InvalidCandles:   totalInvalid,
+			ValidationErrors: totalInvalid,
 			ProcessedAt:      endTime,
 			ProcessingTimeMs: processingTime.Milliseconds(),
 		}
