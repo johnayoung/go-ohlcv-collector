@@ -15,8 +15,8 @@ import (
 type Migration struct {
 	Version     int
 	Description string
-	Up          func(ctx context.Context, db *sql.DB) error
-	Down        func(ctx context.Context, db *sql.DB) error
+	Up          func(ctx context.Context, db *sql.Tx) error
+	Down        func(ctx context.Context, db *sql.Tx) error
 }
 
 // MigrationManager handles database schema migrations for DuckDB
@@ -370,7 +370,7 @@ func getAllMigrations() []Migration {
 }
 
 // Migration V1: Initial schema with candles and gaps tables
-func migrationV1Up(ctx context.Context, db *sql.DB) error {
+func migrationV1Up(ctx context.Context, db *sql.Tx) error {
 	queries := []string{
 		// Candles table with comprehensive constraints
 		`CREATE TABLE IF NOT EXISTS candles (
@@ -416,7 +416,7 @@ func migrationV1Up(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func migrationV1Down(ctx context.Context, db *sql.DB) error {
+func migrationV1Down(ctx context.Context, db *sql.Tx) error {
 	queries := []string{
 		"DROP TABLE IF EXISTS gaps",
 		"DROP TABLE IF EXISTS candles",
@@ -432,7 +432,7 @@ func migrationV1Down(ctx context.Context, db *sql.DB) error {
 }
 
 // Migration V2: Collection jobs tracking
-func migrationV2Up(ctx context.Context, db *sql.DB) error {
+func migrationV2Up(ctx context.Context, db *sql.Tx) error {
 	query := `
 		CREATE TABLE IF NOT EXISTS collection_jobs (
 			id VARCHAR PRIMARY KEY,
@@ -458,7 +458,7 @@ func migrationV2Up(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func migrationV2Down(ctx context.Context, db *sql.DB) error {
+func migrationV2Down(ctx context.Context, db *sql.Tx) error {
 	if _, err := db.ExecContext(ctx, "DROP TABLE IF EXISTS collection_jobs"); err != nil {
 		return fmt.Errorf("failed to drop collection_jobs table: %w", err)
 	}
@@ -466,7 +466,7 @@ func migrationV2Down(ctx context.Context, db *sql.DB) error {
 }
 
 // Migration V3: Validation results and anomalies
-func migrationV3Up(ctx context.Context, db *sql.DB) error {
+func migrationV3Up(ctx context.Context, db *sql.Tx) error {
 	queries := []string{
 		// Validation results table
 		`CREATE TABLE IF NOT EXISTS validation_results (
@@ -502,7 +502,7 @@ func migrationV3Up(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func migrationV3Down(ctx context.Context, db *sql.DB) error {
+func migrationV3Down(ctx context.Context, db *sql.Tx) error {
 	queries := []string{
 		"DROP TABLE IF EXISTS anomalies",
 		"DROP TABLE IF EXISTS validation_results",
@@ -518,7 +518,7 @@ func migrationV3Down(ctx context.Context, db *sql.DB) error {
 }
 
 // Migration V4: Trading pairs catalog
-func migrationV4Up(ctx context.Context, db *sql.DB) error {
+func migrationV4Up(ctx context.Context, db *sql.Tx) error {
 	query := `
 		CREATE TABLE IF NOT EXISTS trading_pairs (
 			symbol VARCHAR PRIMARY KEY,
@@ -540,7 +540,7 @@ func migrationV4Up(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func migrationV4Down(ctx context.Context, db *sql.DB) error {
+func migrationV4Down(ctx context.Context, db *sql.Tx) error {
 	if _, err := db.ExecContext(ctx, "DROP TABLE IF EXISTS trading_pairs"); err != nil {
 		return fmt.Errorf("failed to drop trading_pairs table: %w", err)
 	}
@@ -548,7 +548,7 @@ func migrationV4Down(ctx context.Context, db *sql.DB) error {
 }
 
 // Migration V5: Performance indexes
-func migrationV5Up(ctx context.Context, db *sql.DB) error {
+func migrationV5Up(ctx context.Context, db *sql.Tx) error {
 	indexes := []string{
 		// Candles indexes for optimal query performance
 		"CREATE INDEX IF NOT EXISTS idx_candles_pair_interval ON candles (pair, interval)",
@@ -587,7 +587,7 @@ func migrationV5Up(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func migrationV5Down(ctx context.Context, db *sql.DB) error {
+func migrationV5Down(ctx context.Context, db *sql.Tx) error {
 	indexes := []string{
 		"DROP INDEX IF EXISTS idx_candles_pair_interval",
 		"DROP INDEX IF EXISTS idx_candles_timestamp", 
