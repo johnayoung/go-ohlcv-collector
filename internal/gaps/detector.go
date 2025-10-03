@@ -14,9 +14,9 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/storage"
-	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // GapDetectorImpl implements the GapDetector interface with comprehensive

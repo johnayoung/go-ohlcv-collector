@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 )
 
 // GapDetector identifies missing periods in historical OHLCV data sequences.
