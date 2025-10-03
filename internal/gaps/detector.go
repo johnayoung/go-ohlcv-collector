@@ -485,10 +485,44 @@ func (bf *BackfillerImpl) RetryFailedGaps(ctx context.Context, maxRetries int, r
 		"retry_delay", retryDelay,
 	)
 
-	// TODO: GetGapsByStatus is not available in current storage interface
-	// This method needs to be updated when the storage interface is extended
-	// For now, return an error indicating the limitation
-	return 0, fmt.Errorf("RetryFailedGaps requires GetGapsByStatus method which is not available in current storage interface")
+	// Get all detected gaps that may have failed
+	detectedGaps, err := bf.storage.GetGapsByStatus(ctx, models.GapStatusDetected)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get detected gaps: %w", err)
+	}
+
+	// Filter gaps that have failed attempts and are eligible for retry
+	retriedCount := 0
+	for _, gap := range detectedGaps {
+		// Skip gaps that haven't been attempted or have exceeded max retries
+		if gap.Attempts == 0 || gap.Attempts >= maxRetries {
+			continue
+		}
+
+		// Check if enough time has passed since last attempt
+		if gap.LastAttemptAt != nil && time.Since(*gap.LastAttemptAt) < retryDelay {
+			continue
+		}
+
+		// Attempt to fill the gap
+		if err := bf.StartGapFilling(ctx, gap.ID); err != nil {
+			bf.logger.Warn("Failed to retry gap",
+				"gap_id", gap.ID,
+				"attempts", gap.Attempts,
+				"error", err,
+			)
+			continue
+		}
+
+		retriedCount++
+	}
+
+	bf.logger.Info("Completed retry of failed gaps",
+		"retried_count", retriedCount,
+		"total_detected", len(detectedGaps),
+	)
+
+	return retriedCount, nil
 }
 
 // GetBackfillProgress returns current status of backfill operations.
@@ -496,10 +530,18 @@ func (bf *BackfillerImpl) GetBackfillProgress(ctx context.Context) (*BackfillSta
 	bf.mu.RLock()
 	defer bf.mu.RUnlock()
 
-	// TODO: GetGapsByStatus is not available in current storage interface
-	// For now, use placeholder values
-	detectedGaps := []models.Gap{}
-	fillingGaps := []models.Gap{}
+	// Get gaps by status
+	detectedGaps, err := bf.storage.GetGapsByStatus(ctx, models.GapStatusDetected)
+	if err != nil {
+		bf.logger.Error("Failed to get detected gaps", "error", err)
+		detectedGaps = []models.Gap{}
+	}
+
+	fillingGaps, err := bf.storage.GetGapsByStatus(ctx, models.GapStatusFilling)
+	if err != nil {
+		bf.logger.Error("Failed to get filling gaps", "error", err)
+		fillingGaps = []models.Gap{}
+	}
 
 	bf.metrics.mu.RLock()
 	metrics := BackfillMetrics{
@@ -641,42 +683,109 @@ func (gm *GapManagerImpl) RunBackfillCycle(ctx context.Context) (*BackfillResult
 
 // GetGapStatistics returns comprehensive statistics about gap management.
 func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics, error) {
-	// TODO: GetGapsByStatus is not available in current storage interface
-	// For now, use placeholder values
-	detectedGaps := []models.Gap{}
-	filledGaps := []models.Gap{}
-	permanentGaps := []models.Gap{}
+	// Get gaps by status
+	detectedGaps, err := gm.storage.GetGapsByStatus(ctx, models.GapStatusDetected)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get detected gaps: %w", err)
+	}
 
+	fillingGaps, err := gm.storage.GetGapsByStatus(ctx, models.GapStatusFilling)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get filling gaps: %w", err)
+	}
+
+	filledGaps, err := gm.storage.GetGapsByStatus(ctx, models.GapStatusFilled)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get filled gaps: %w", err)
+	}
+
+	permanentGaps, err := gm.storage.GetGapsByStatus(ctx, models.GapStatusPermanent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get permanent gaps: %w", err)
+	}
+
+	// Build status map
 	gapsByStatus := map[models.GapStatus]int{
 		models.GapStatusDetected:  len(detectedGaps),
+		models.GapStatusFilling:   len(fillingGaps),
 		models.GapStatusFilled:    len(filledGaps),
 		models.GapStatusPermanent: len(permanentGaps),
 	}
 
-	totalGaps := len(detectedGaps) + len(filledGaps) + len(permanentGaps)
+	// Calculate totals
+	totalGaps := len(detectedGaps) + len(fillingGaps) + len(filledGaps) + len(permanentGaps)
+	activeGaps := len(detectedGaps) + len(fillingGaps)
 	successRate := float64(0)
 	if totalGaps > 0 {
 		successRate = float64(len(filledGaps)) / float64(totalGaps) * 100
 	}
 
+	// Build priority and pair maps
+	gapsByPriority := make(map[models.GapPriority]int)
+	gapsByPair := make(map[string]int)
+	allGaps := append(append(append(detectedGaps, fillingGaps...), filledGaps...), permanentGaps...)
+	
+	for _, gap := range allGaps {
+		gapsByPriority[gap.Priority]++
+		gapsByPair[gap.Pair]++
+	}
+
 	return &GapStatistics{
 		TotalGaps:      totalGaps,
-		ActiveGaps:     len(detectedGaps),
+		ActiveGaps:     activeGaps,
 		FilledGaps:     len(filledGaps),
 		PermanentGaps:  len(permanentGaps),
 		GapsByStatus:   gapsByStatus,
-		GapsByPriority: make(map[models.GapPriority]int),
-		GapsByPair:     make(map[string]int),
+		GapsByPriority: gapsByPriority,
+		GapsByPair:     gapsByPair,
 		SuccessRate:    successRate,
 	}, nil
 }
 
 // PrioritizeGaps recalculates priorities for all detected gaps.
 func (gm *GapManagerImpl) PrioritizeGaps(ctx context.Context) (int, error) {
-	// TODO: GetGapsByStatus is not available in current storage interface
-	// This method needs to be updated when the storage interface is extended
-	gaps := []models.Gap{} // placeholder
+	// Get all detected gaps that need prioritization
+	gaps, err := gm.storage.GetGapsByStatus(ctx, models.GapStatusDetected)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get detected gaps: %w", err)
+	}
+
 	priorityChanges := 0
+	now := time.Now().UTC()
+
+	for _, gap := range gaps {
+		// Calculate new priority based on gap age and duration
+		oldPriority := gap.Priority
+		gapAge := now.Sub(gap.CreatedAt)
+		gapDuration := gap.EndTime.Sub(gap.StartTime)
+
+		// Determine new priority based on age and duration
+		var newPriority models.GapPriority
+		if gapAge > 7*24*time.Hour || gapDuration > 24*time.Hour {
+			newPriority = models.PriorityCritical
+		} else if gapAge > 24*time.Hour || gapDuration > 6*time.Hour {
+			newPriority = models.PriorityHigh
+		} else if gapAge > 1*time.Hour {
+			newPriority = models.PriorityMedium
+		} else {
+			newPriority = models.PriorityLow
+		}
+
+		// Update if priority changed
+		if newPriority != oldPriority {
+			gap.Priority = newPriority
+			if err := gm.storage.StoreGap(ctx, gap); err != nil {
+				gm.logger.Warn("Failed to update gap priority",
+					"gap_id", gap.ID,
+					"old_priority", oldPriority,
+					"new_priority", newPriority,
+					"error", err,
+				)
+				continue
+			}
+			priorityChanges++
+		}
+	}
 
 	gm.logger.Info("Gap prioritization completed",
 		"gaps_checked", len(gaps),

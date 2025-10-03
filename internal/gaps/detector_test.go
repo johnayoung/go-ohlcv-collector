@@ -49,6 +49,14 @@ func (m *MockStorage) GetGapByID(ctx context.Context, gapID string) (*models.Gap
 	return args.Get(0).(*models.Gap), args.Error(1)
 }
 
+func (m *MockStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	args := m.Called(ctx, status)
+	if args.Get(0) == nil {
+		return []models.Gap{}, args.Error(1)
+	}
+	return args.Get(0).([]models.Gap), args.Error(1)
+}
+
 func (m *MockStorage) MarkGapFilled(ctx context.Context, gapID string, filledAt time.Time) error {
 	args := m.Called(ctx, gapID, filledAt)
 	return args.Error(0)
@@ -692,7 +700,7 @@ func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 					"1h")
 
 				ms.On("GetGapByID", mock.Anything, "gap-1").Return(gap, nil)
-				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Twice() // Once for filling status, once for failure/success
+				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Once() // Once for filling status
 
 				// Mock successful exchange fetch
 				candles := []contracts.Candle{
@@ -871,7 +879,18 @@ func TestBackfillerImpl_FillGapWithData(t *testing.T) {
 
 // TestBackfillerImpl_GetBackfillProgress tests backfill progress reporting
 func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
+	mockStorage := new(MockStorage)
+	
+	// Setup mock responses for GetGapsByStatus
+	mockStorage.On("GetGapsByStatus", mock.Anything, models.GapStatusDetected).Return([]models.Gap{
+		{ID: "gap-1"}, {ID: "gap-2"},
+	}, nil)
+	mockStorage.On("GetGapsByStatus", mock.Anything, models.GapStatusFilling).Return([]models.Gap{
+		{ID: "gap-3"},
+	}, nil)
+	
 	backfiller := &BackfillerImpl{
+		storage:   mockStorage,
 		isRunning: true,
 		metrics: &BackfillMetrics{
 			TotalGapsProcessed: 10,
@@ -888,9 +907,13 @@ func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, progress)
 	assert.True(t, progress.Active)
+	assert.Equal(t, 1, progress.ActiveGaps)   // filling gaps
+	assert.Equal(t, 2, progress.QueuedGaps)   // detected gaps
 	assert.Equal(t, 7, progress.CompletedGaps)
 	assert.Equal(t, 3, progress.FailedGaps)
 	assert.Equal(t, 70.0, progress.SuccessRate) // 7/10 * 100
+	
+	mockStorage.AssertExpectations(t)
 }
 
 // TestBackfillerImpl_StopBackfill tests graceful backfill stopping
