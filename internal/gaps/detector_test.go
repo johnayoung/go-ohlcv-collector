@@ -49,6 +49,14 @@ func (m *MockStorage) GetGapByID(ctx context.Context, gapID string) (*models.Gap
 	return args.Get(0).(*models.Gap), args.Error(1)
 }
 
+func (m *MockStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	args := m.Called(ctx, status)
+	if args.Get(0) == nil {
+		return []models.Gap{}, args.Error(1)
+	}
+	return args.Get(0).([]models.Gap), args.Error(1)
+}
+
 func (m *MockStorage) MarkGapFilled(ctx context.Context, gapID string, filledAt time.Time) error {
 	args := m.Called(ctx, gapID, filledAt)
 	return args.Error(0)

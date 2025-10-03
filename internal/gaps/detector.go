@@ -713,8 +713,15 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 		return nil, fmt.Errorf("failed to get filling gaps: %w", err)
 	}
 
+	permanentGaps, err := gm.storage.GetGapsByStatus(ctx, models.GapStatusPermanent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get permanent gaps: %w", err)
+	}
+
+	// Calculate gaps by status
 	gapsByStatus := map[models.GapStatus]int{
 		models.GapStatusDetected:  len(detectedGaps),
+		models.GapStatusFilling:   len(fillingGaps),
 		models.GapStatusFilled:    len(filledGaps),
 		models.GapStatusPermanent: len(permanentGaps),
 		models.GapStatusFilling:   len(fillingGaps),
@@ -724,6 +731,15 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 	successRate := float64(0)
 	if totalGaps > 0 {
 		successRate = float64(len(filledGaps)) / float64(totalGaps) * 100
+	}
+
+	// Find oldest active gap
+	var oldestActiveGap *time.Time
+	for _, gap := range allActiveGaps {
+		if oldestActiveGap == nil || gap.CreatedAt.Before(*oldestActiveGap) {
+			gapTime := gap.CreatedAt
+			oldestActiveGap = &gapTime
+		}
 	}
 
 	return &GapStatistics{
@@ -774,6 +790,33 @@ func (gm *GapManagerImpl) PrioritizeGaps(ctx context.Context) (int, error) {
 	)
 
 	return priorityChanges, nil
+}
+
+// calculateGapPriority determines the priority of a gap based on its characteristics.
+func calculateGapPriority(gap *models.Gap) models.GapPriority {
+	// Calculate gap age
+	age := time.Since(gap.CreatedAt)
+
+	// Calculate gap duration
+	duration := gap.EndTime.Sub(gap.StartTime)
+
+	// Critical priority: very recent gaps (< 1 hour old) or very large gaps (> 24 hours duration)
+	if age < 1*time.Hour || duration > 24*time.Hour {
+		return models.PriorityCritical
+	}
+
+	// High priority: recent gaps (< 6 hours old) or large gaps (> 6 hours duration)
+	if age < 6*time.Hour || duration > 6*time.Hour {
+		return models.PriorityHigh
+	}
+
+	// Medium priority: moderately old gaps (< 24 hours old) or medium gaps (> 1 hour duration)
+	if age < 24*time.Hour || duration > 1*time.Hour {
+		return models.PriorityMedium
+	}
+
+	// Low priority: old gaps or small gaps
+	return models.PriorityLow
 }
 
 // CleanupCompletedGaps removes old completed gaps from storage.

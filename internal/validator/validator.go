@@ -15,8 +15,8 @@ import (
 
 	"github.com/shopspring/decimal"
 
-	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 )
 
 // DataValidator defines the main interface for validating OHLCV data quality and logical consistency.
