@@ -70,6 +70,11 @@ type GapStorage interface {
 	// This should only be used for gaps that are no longer relevant
 	// or were created in error. Prefer MarkGapFilled for successful resolution.
 	DeleteGap(ctx context.Context, gapID string) error
+
+	// GetGapsByStatus retrieves gaps with a specific status.
+	// This is useful for filtering gaps by their lifecycle state (detected, filling, filled, permanent).
+	// Returns empty slice if no gaps exist with the given status.
+	GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error)
 }
 
 // StorageManager handles storage lifecycle and operational concerns.

@@ -59,6 +59,14 @@ func (m *MockStorage) DeleteGap(ctx context.Context, gapID string) error {
 	return args.Error(0)
 }
 
+func (m *MockStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	args := m.Called(ctx, status)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Gap), args.Error(1)
+}
+
 // Mock remaining storage methods to satisfy interface
 func (m *MockStorage) Store(ctx context.Context, candles []models.Candle) error {
 	args := m.Called(ctx, candles)
@@ -871,7 +879,19 @@ func TestBackfillerImpl_FillGapWithData(t *testing.T) {
 
 // TestBackfillerImpl_GetBackfillProgress tests backfill progress reporting
 func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
+	mockStorage := new(MockStorage)
+	
+	// Mock GetGapsByStatus calls
+	mockStorage.On("GetGapsByStatus", mock.Anything, models.GapStatusDetected).Return([]models.Gap{
+		{ID: "gap-1", Status: models.GapStatusDetected},
+		{ID: "gap-2", Status: models.GapStatusDetected},
+	}, nil)
+	mockStorage.On("GetGapsByStatus", mock.Anything, models.GapStatusFilling).Return([]models.Gap{
+		{ID: "gap-3", Status: models.GapStatusFilling},
+	}, nil)
+	
 	backfiller := &BackfillerImpl{
+		storage:   mockStorage,
 		isRunning: true,
 		metrics: &BackfillMetrics{
 			TotalGapsProcessed: 10,
@@ -888,9 +908,13 @@ func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, progress)
 	assert.True(t, progress.Active)
+	assert.Equal(t, 1, progress.ActiveGaps)   // 1 filling gap
+	assert.Equal(t, 2, progress.QueuedGaps)   // 2 detected gaps
 	assert.Equal(t, 7, progress.CompletedGaps)
 	assert.Equal(t, 3, progress.FailedGaps)
 	assert.Equal(t, 70.0, progress.SuccessRate) // 7/10 * 100
+	
+	mockStorage.AssertExpectations(t)
 }
 
 // TestBackfillerImpl_StopBackfill tests graceful backfill stopping
