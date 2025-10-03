@@ -724,7 +724,7 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 	gapsByPriority := make(map[models.GapPriority]int)
 	gapsByPair := make(map[string]int)
 	allGaps := append(append(append(detectedGaps, fillingGaps...), filledGaps...), permanentGaps...)
-	
+
 	for _, gap := range allGaps {
 		gapsByPriority[gap.Priority]++
 		gapsByPair[gap.Pair]++
