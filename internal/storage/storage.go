@@ -56,6 +56,12 @@ type GapStorage interface {
 	// Returns empty slice if no gaps exist for the given criteria.
 	GetGaps(ctx context.Context, pair string, interval string) ([]models.Gap, error)
 
+	// GetGapsByStatus retrieves all gaps with a specific status.
+	// This is useful for filtering gaps by their lifecycle state (detected, filling, filled, permanent).
+	// Results are typically ordered by priority and creation time.
+	// Returns empty slice if no gaps exist with the given status.
+	GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error)
+
 	// GetGapByID retrieves a specific gap by its unique identifier.
 	// Returns nil if the gap doesn't exist.
 	// This method is used for gap status updates and resolution tracking.
