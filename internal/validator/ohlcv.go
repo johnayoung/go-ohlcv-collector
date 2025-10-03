@@ -21,8 +21,8 @@ import (
 
 	"github.com/shopspring/decimal"
 
-	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
+	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 )
 
 // OHLCVValidator provides comprehensive OHLCV data validation and anomaly detection.

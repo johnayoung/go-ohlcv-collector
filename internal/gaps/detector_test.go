@@ -880,7 +880,7 @@ func TestBackfillerImpl_FillGapWithData(t *testing.T) {
 // TestBackfillerImpl_GetBackfillProgress tests backfill progress reporting
 func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 	mockStorage := new(MockStorage)
-	
+
 	// Setup mock for GetGapsByStatus calls
 	detectedGaps := []models.Gap{
 		{ID: "gap-1", Status: models.GapStatusDetected},
@@ -889,7 +889,7 @@ func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 	fillingGaps := []models.Gap{
 		{ID: "gap-3", Status: models.GapStatusFilling},
 	}
-	
+
 	mockStorage.On("GetGapsByStatus", mock.Anything, models.GapStatusDetected).Return(detectedGaps, nil)
 	mockStorage.On("GetGapsByStatus", mock.Anything, models.GapStatusFilling).Return(fillingGaps, nil)
 
@@ -911,12 +911,12 @@ func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, progress)
 	assert.True(t, progress.Active)
-	assert.Equal(t, 1, progress.ActiveGaps)      // filling gaps
-	assert.Equal(t, 2, progress.QueuedGaps)      // detected gaps
+	assert.Equal(t, 1, progress.ActiveGaps) // filling gaps
+	assert.Equal(t, 2, progress.QueuedGaps) // detected gaps
 	assert.Equal(t, 7, progress.CompletedGaps)
 	assert.Equal(t, 3, progress.FailedGaps)
 	assert.Equal(t, 70.0, progress.SuccessRate) // 7/10 * 100
-	
+
 	mockStorage.AssertExpectations(t)
 }
 

@@ -757,14 +757,14 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 	}
 
 	return &GapStatistics{
-		TotalGaps:      totalGaps,
-		ActiveGaps:     len(detectedGaps),
-		FilledGaps:     len(filledGaps),
-		PermanentGaps:  len(permanentGaps),
-		GapsByStatus:   gapsByStatus,
-		GapsByPriority: gapsByPriority,
-		GapsByPair:     gapsByPair,
-		SuccessRate:    successRate,
+		TotalGaps:       totalGaps,
+		ActiveGaps:      len(detectedGaps),
+		FilledGaps:      len(filledGaps),
+		PermanentGaps:   len(permanentGaps),
+		GapsByStatus:    gapsByStatus,
+		GapsByPriority:  gapsByPriority,
+		GapsByPair:      gapsByPair,
+		SuccessRate:     successRate,
 		OldestActiveGap: oldestActiveGap,
 	}, nil
 }
@@ -787,14 +787,14 @@ func (gm *GapManagerImpl) PrioritizeGaps(ctx context.Context) (int, error) {
 	// Recalculate priority for each gap
 	for _, gap := range gaps {
 		oldPriority := gap.Priority
-		
+
 		// Get the gap from storage to update it (this should be done via a storage method)
 		// For now, we'll just count potential changes based on gap age and duration
 		// A full implementation would need a UpdateGapPriority method in storage
-		
+
 		// Calculate new priority based on gap characteristics
 		newPriority := calculateGapPriority(&gap)
-		
+
 		if newPriority != oldPriority {
 			priorityChanges++
 			gm.logger.Debug("Gap priority changed",
@@ -817,25 +817,25 @@ func (gm *GapManagerImpl) PrioritizeGaps(ctx context.Context) (int, error) {
 func calculateGapPriority(gap *models.Gap) models.GapPriority {
 	// Calculate gap age
 	age := time.Since(gap.CreatedAt)
-	
+
 	// Calculate gap duration
 	duration := gap.EndTime.Sub(gap.StartTime)
-	
+
 	// Critical priority: very recent gaps (< 1 hour old) or very large gaps (> 24 hours duration)
 	if age < 1*time.Hour || duration > 24*time.Hour {
 		return models.PriorityCritical
 	}
-	
+
 	// High priority: recent gaps (< 6 hours old) or large gaps (> 6 hours duration)
 	if age < 6*time.Hour || duration > 6*time.Hour {
 		return models.PriorityHigh
 	}
-	
+
 	// Medium priority: moderately old gaps (< 24 hours old) or medium gaps (> 1 hour duration)
 	if age < 24*time.Hour || duration > 1*time.Hour {
 		return models.PriorityMedium
 	}
-	
+
 	// Low priority: old gaps or small gaps
 	return models.PriorityLow
 }
