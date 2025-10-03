@@ -338,6 +338,74 @@ func (m *MockCollector) GetCollectCount() int64 {
 	return atomic.LoadInt64(&m.collectCount)
 }
 
+// MockCollectionJob provides a test implementation of CollectionJob
+type MockCollectionJob struct {
+	id           string
+	pair         string
+	interval     string
+	nextRun      time.Time
+	executeCount int64
+	shouldFail   bool
+	mu           sync.RWMutex
+}
+
+func NewMockCollectionJob(pair, interval string) *MockCollectionJob {
+	return &MockCollectionJob{
+		id:       pair + "-" + interval,
+		pair:     pair,
+		interval: interval,
+		nextRun:  time.Now().Add(time.Hour),
+	}
+}
+
+func (m *MockCollectionJob) Execute(ctx context.Context) error {
+	atomic.AddInt64(&m.executeCount, 1)
+
+	m.mu.RLock()
+	shouldFail := m.shouldFail
+	m.mu.RUnlock()
+
+	if shouldFail {
+		return assert.AnError
+	}
+
+	return nil
+}
+
+func (m *MockCollectionJob) GetPair() string {
+	return m.pair
+}
+
+func (m *MockCollectionJob) GetInterval() string {
+	return m.interval
+}
+
+func (m *MockCollectionJob) GetNextRun() time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.nextRun
+}
+
+func (m *MockCollectionJob) SetNextRun(nextRun time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.nextRun = nextRun
+}
+
+func (m *MockCollectionJob) GetID() string {
+	return m.id
+}
+
+func (m *MockCollectionJob) SetShouldFail(shouldFail bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.shouldFail = shouldFail
+}
+
+func (m *MockCollectionJob) GetExecuteCount() int64 {
+	return atomic.LoadInt64(&m.executeCount)
+}
+
 // Use interfaces from collector package
 type CollectionJob = collector.CollectionJob
 type SchedulerConfig = collector.SchedulerConfig
@@ -630,24 +698,45 @@ func (s *SchedulerIntegrationTestSuite) TestMemoryManagementLongRunning() {
 }
 
 func (s *SchedulerIntegrationTestSuite) TestJobManagement() {
-	s.T().Skip("Skipping until scheduler is implemented")
-
-	// TODO: Create mock CollectionJob implementation
-	// mockJob := NewMockCollectionJob("BTC/USD", "1h")
+	// Create mock CollectionJob implementation
+	mockJob := NewMockCollectionJob("BTC/USD", "1h")
 
 	// Test adding jobs
-	// err := s.scheduler.AddJob(mockJob)
-	// s.Require().NoError(err)
+	err := s.scheduler.AddJob(mockJob)
+	s.Require().NoError(err)
 
 	jobs := s.scheduler.GetJobs()
 	initialJobCount := len(jobs)
 
+	// Verify job was added
+	s.Assert().Greater(initialJobCount, 0, "Should have jobs after adding")
+
+	// Verify we can find the added job
+	found := false
+	for _, job := range jobs {
+		if job.GetPair() == "BTC/USD" && job.GetInterval() == "1h" {
+			found = true
+			break
+		}
+	}
+	s.Assert().True(found, "Added job should be in job list")
+
 	// Test removing jobs
-	err := s.scheduler.RemoveJob("BTC/USD", "1h")
+	err = s.scheduler.RemoveJob("BTC/USD", "1h")
 	s.Require().NoError(err)
 
 	jobs = s.scheduler.GetJobs()
 	s.Assert().Equal(initialJobCount-1, len(jobs))
+
+	// Verify job was removed
+	found = false
+	for _, job := range jobs {
+		if job.GetPair() == "BTC/USD" && job.GetInterval() == "1h" {
+			found = true
+			break
+		}
+	}
+	s.Assert().False(found, "Removed job should not be in job list")
 }
 
 func (s *SchedulerIntegrationTestSuite) TestSchedulerStatsAccuracy() {
