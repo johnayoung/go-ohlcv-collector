@@ -54,6 +54,14 @@ func (m *MockStorage) GetGapByID(ctx context.Context, gapID string) (*models.Gap
 	return args.Get(0).(*models.Gap), args.Error(1)
 }
 
+func (m *MockStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	args := m.Called(ctx, status)
+	if args.Get(0) == nil {
+		return []models.Gap{}, args.Error(1)
+	}
+	return args.Get(0).([]models.Gap), args.Error(1)
+}
+
 func (m *MockStorage) MarkGapFilled(ctx context.Context, gapID string, filledAt time.Time) error {
 	args := m.Called(ctx, gapID, filledAt)
 	return args.Error(0)
@@ -62,6 +70,14 @@ func (m *MockStorage) MarkGapFilled(ctx context.Context, gapID string, filledAt 
 func (m *MockStorage) DeleteGap(ctx context.Context, gapID string) error {
 	args := m.Called(ctx, gapID)
 	return args.Error(0)
+}
+
+func (m *MockStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	args := m.Called(ctx, status)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Gap), args.Error(1)
 }
 
 // Mock remaining storage methods to satisfy interface
@@ -697,7 +713,7 @@ func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 					"1h")
 
 				ms.On("GetGapByID", mock.Anything, "gap-1").Return(gap, nil)
-				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Twice() // Once for filling status, once for failure/success
+				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Once() // Once for filling status
 
 				// Mock successful exchange fetch
 				candles := []contracts.Candle{
@@ -883,7 +899,6 @@ func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 		{ID: "gap-1", Status: models.GapStatusDetected},
 		{ID: "gap-2", Status: models.GapStatusDetected},
 	}, nil)
-	
 	mockStorage.On("GetGapsByStatus", mock.Anything, models.GapStatusFilling).Return([]models.Gap{
 		{ID: "gap-3", Status: models.GapStatusFilling},
 	}, nil)
@@ -906,8 +921,8 @@ func TestBackfillerImpl_GetBackfillProgress(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, progress)
 	assert.True(t, progress.Active)
-	assert.Equal(t, 1, progress.ActiveGaps)  // Number of filling gaps
-	assert.Equal(t, 2, progress.QueuedGaps)  // Number of detected gaps
+	assert.Equal(t, 1, progress.ActiveGaps)   // 1 filling gap
+	assert.Equal(t, 2, progress.QueuedGaps)   // 2 detected gaps
 	assert.Equal(t, 7, progress.CompletedGaps)
 	assert.Equal(t, 3, progress.FailedGaps)
 	assert.Equal(t, 70.0, progress.SuccessRate) // 7/10 * 100

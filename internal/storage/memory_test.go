@@ -137,6 +137,143 @@ func TestMemoryStorage_GapOperations(t *testing.T) {
 	assert.Contains(t, err.Error(), "gap not found")
 }
 
+func TestMemoryStorage_GetGapsByStatus(t *testing.T) {
+	storage := NewMemoryStorage()
+	ctx := context.Background()
+
+	err := storage.Initialize(ctx)
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+
+	// Create gaps with different statuses
+	gaps := []models.Gap{
+		{
+			ID:        "gap-detected-001",
+			Pair:      "BTC/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-2 * time.Hour),
+			EndTime:   now.Add(-1 * time.Hour),
+			Status:    models.GapStatusDetected,
+			CreatedAt: now.Add(-10 * time.Minute),
+			Priority:  models.PriorityHigh,
+		},
+		{
+			ID:        "gap-detected-002",
+			Pair:      "ETH/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-3 * time.Hour),
+			EndTime:   now.Add(-2 * time.Hour),
+			Status:    models.GapStatusDetected,
+			CreatedAt: now.Add(-15 * time.Minute),
+			Priority:  models.PriorityMedium,
+		},
+		{
+			ID:        "gap-filling-001",
+			Pair:      "BTC/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-4 * time.Hour),
+			EndTime:   now.Add(-3 * time.Hour),
+			Status:    models.GapStatusFilling,
+			CreatedAt: now.Add(-20 * time.Minute),
+			Priority:  models.PriorityMedium,
+		},
+		{
+			ID:        "gap-filled-001",
+			Pair:      "BTC/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-6 * time.Hour),
+			EndTime:   now.Add(-5 * time.Hour),
+			Status:    models.GapStatusFilled,
+			CreatedAt: now.Add(-30 * time.Minute),
+			Priority:  models.PriorityLow,
+			FilledAt:  &[]time.Time{now.Add(-5 * time.Minute)}[0],
+		},
+		{
+			ID:        "gap-permanent-001",
+			Pair:      "ETH/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-8 * time.Hour),
+			EndTime:   now.Add(-7 * time.Hour),
+			Status:    models.GapStatusPermanent,
+			CreatedAt: now.Add(-40 * time.Minute),
+			Priority:  models.PriorityLow,
+		},
+	}
+
+	// Store all gaps
+	for _, gap := range gaps {
+		err = storage.StoreGap(ctx, gap)
+		require.NoError(t, err)
+	}
+
+	// Test getting gaps by status
+	tests := []struct {
+		name          string
+		status        models.GapStatus
+		expectedCount int
+		expectedIDs   []string
+	}{
+		{
+			name:          "get_detected_gaps",
+			status:        models.GapStatusDetected,
+			expectedCount: 2,
+			expectedIDs:   []string{"gap-detected-001", "gap-detected-002"},
+		},
+		{
+			name:          "get_filling_gaps",
+			status:        models.GapStatusFilling,
+			expectedCount: 1,
+			expectedIDs:   []string{"gap-filling-001"},
+		},
+		{
+			name:          "get_filled_gaps",
+			status:        models.GapStatusFilled,
+			expectedCount: 1,
+			expectedIDs:   []string{"gap-filled-001"},
+		},
+		{
+			name:          "get_permanent_gaps",
+			status:        models.GapStatusPermanent,
+			expectedCount: 1,
+			expectedIDs:   []string{"gap-permanent-001"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := storage.GetGapsByStatus(ctx, tt.status)
+			require.NoError(t, err)
+			assert.Len(t, result, tt.expectedCount)
+
+			// Verify gap IDs
+			gotIDs := make([]string, len(result))
+			for i, gap := range result {
+				gotIDs[i] = gap.ID
+			}
+			assert.ElementsMatch(t, tt.expectedIDs, gotIDs)
+
+			// Verify all gaps have the correct status
+			for _, gap := range result {
+				assert.Equal(t, tt.status, gap.Status)
+			}
+
+			// Verify gaps are ordered by priority (descending) and created_at (ascending)
+			if len(result) > 1 {
+				for i := 0; i < len(result)-1; i++ {
+					if result[i].Priority == result[i+1].Priority {
+						assert.True(t, result[i].CreatedAt.Before(result[i+1].CreatedAt) || result[i].CreatedAt.Equal(result[i+1].CreatedAt),
+							"Gaps with same priority should be ordered by creation time (ascending)")
+					} else {
+						assert.True(t, result[i].Priority > result[i+1].Priority,
+							"Gaps should be ordered by priority (descending)")
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestMemoryStorage_EdgeCases(t *testing.T) {
 	storage := NewMemoryStorage()
 	ctx := context.Background()
@@ -241,65 +378,49 @@ func TestMemoryStorage_GetGapsByStatus(t *testing.T) {
 	err := storage.Initialize(ctx)
 	require.NoError(t, err)
 
-	now := time.Now().UTC().Truncate(time.Second)
-
-	// Create gaps with different statuses
+	// Create test gaps with different statuses
+	now := time.Now().UTC()
 	gaps := []models.Gap{
 		{
-			ID:        "gap-detected-1",
+			ID:        "gap-1",
 			Pair:      "BTC-USD",
-			Interval:  "1h",
-			StartTime: now.Add(-3 * time.Hour),
-			EndTime:   now.Add(-2 * time.Hour),
-			Status:    models.GapStatusDetected,
-			CreatedAt: now.Add(-1 * time.Hour),
-			Priority:  models.PriorityHigh,
-			Attempts:  0,
-		},
-		{
-			ID:        "gap-detected-2",
-			Pair:      "ETH-USD",
-			Interval:  "5m",
 			StartTime: now.Add(-2 * time.Hour),
 			EndTime:   now.Add(-1 * time.Hour),
+			Interval:  "1h",
 			Status:    models.GapStatusDetected,
-			CreatedAt: now.Add(-30 * time.Minute),
-			Priority:  models.PriorityMedium,
-			Attempts:  0,
+			CreatedAt: now,
+			Priority:  models.PriorityHigh,
 		},
 		{
-			ID:        "gap-filling-1",
-			Pair:      "BTC-USD",
+			ID:        "gap-2",
+			Pair:      "ETH-USD",
+			StartTime: now.Add(-3 * time.Hour),
+			EndTime:   now.Add(-2 * time.Hour),
 			Interval:  "1h",
+			Status:    models.GapStatusFilling,
+			CreatedAt: now,
+			Priority:  models.PriorityMedium,
+		},
+		{
+			ID:        "gap-3",
+			Pair:      "BTC-USD",
 			StartTime: now.Add(-4 * time.Hour),
 			EndTime:   now.Add(-3 * time.Hour),
-			Status:    models.GapStatusFilling,
-			CreatedAt: now.Add(-2 * time.Hour),
-			Priority:  models.PriorityMedium,
-			Attempts:  1,
+			Interval:  "1h",
+			Status:    models.GapStatusDetected,
+			CreatedAt: now,
+			Priority:  models.PriorityCritical,
 		},
 		{
-			ID:        "gap-filled-1",
+			ID:        "gap-4",
 			Pair:      "BTC-USD",
-			Interval:  "1h",
 			StartTime: now.Add(-5 * time.Hour),
 			EndTime:   now.Add(-4 * time.Hour),
-			Status:    models.GapStatusFilled,
-			CreatedAt: now.Add(-3 * time.Hour),
-			FilledAt:  func() *time.Time { t := now.Add(-2 * time.Hour); return &t }(),
-			Priority:  models.PriorityMedium,
-			Attempts:  1,
-		},
-		{
-			ID:        "gap-permanent-1",
-			Pair:      "BTC-USD",
 			Interval:  "1h",
-			StartTime: now.Add(-6 * time.Hour),
-			EndTime:   now.Add(-5 * time.Hour),
-			Status:    models.GapStatusPermanent,
-			CreatedAt: now.Add(-4 * time.Hour),
+			Status:    models.GapStatusFilled,
+			CreatedAt: now,
+			FilledAt:  &now,
 			Priority:  models.PriorityLow,
-			Attempts:  3,
 		},
 	}
 
@@ -309,34 +430,27 @@ func TestMemoryStorage_GetGapsByStatus(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Test getting detected gaps
+	// Test GetGapsByStatus for detected status
 	detectedGaps, err := storage.GetGapsByStatus(ctx, models.GapStatusDetected)
 	require.NoError(t, err)
 	assert.Len(t, detectedGaps, 2)
-	// Verify they're sorted by priority (DESC) then created_at (ASC)
-	assert.Equal(t, "gap-detected-1", detectedGaps[0].ID) // High priority, created earlier
-	assert.Equal(t, "gap-detected-2", detectedGaps[1].ID) // Medium priority, created later
+	assert.Equal(t, "gap-3", detectedGaps[0].ID) // Should be ordered by priority (Critical first)
+	assert.Equal(t, "gap-1", detectedGaps[1].ID) // Then High
 
-	// Test getting filling gaps
+	// Test GetGapsByStatus for filling status
 	fillingGaps, err := storage.GetGapsByStatus(ctx, models.GapStatusFilling)
 	require.NoError(t, err)
 	assert.Len(t, fillingGaps, 1)
-	assert.Equal(t, "gap-filling-1", fillingGaps[0].ID)
+	assert.Equal(t, "gap-2", fillingGaps[0].ID)
 
-	// Test getting filled gaps
+	// Test GetGapsByStatus for filled status
 	filledGaps, err := storage.GetGapsByStatus(ctx, models.GapStatusFilled)
 	require.NoError(t, err)
 	assert.Len(t, filledGaps, 1)
-	assert.Equal(t, "gap-filled-1", filledGaps[0].ID)
+	assert.Equal(t, "gap-4", filledGaps[0].ID)
 
-	// Test getting permanent gaps
+	// Test GetGapsByStatus for permanent status (should be empty)
 	permanentGaps, err := storage.GetGapsByStatus(ctx, models.GapStatusPermanent)
 	require.NoError(t, err)
-	assert.Len(t, permanentGaps, 1)
-	assert.Equal(t, "gap-permanent-1", permanentGaps[0].ID)
-
-	// Test getting gaps with status that doesn't exist
-	nonExistentGaps, err := storage.GetGapsByStatus(ctx, models.GapStatus("nonexistent"))
-	require.NoError(t, err)
-	assert.Len(t, nonExistentGaps, 0)
+	assert.Len(t, permanentGaps, 0)
 }

@@ -783,6 +783,62 @@ func (d *DuckDBStorage) GetGapByID(ctx context.Context, gapID string) (*models.G
 	return &gap, nil
 }
 
+// GetGapsByStatus implements GapStorage.GetGapsByStatus
+func (d *DuckDBStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	start := time.Now()
+	defer func() {
+		d.recordQueryTime("get_gaps_by_status", time.Since(start))
+	}()
+
+	query := `
+		SELECT id, pair, start_time, end_time, interval, status, created_at,
+		       filled_at, priority, attempts, last_attempt_at, error_message
+		FROM gaps 
+		WHERE status = $1
+		ORDER BY priority DESC, created_at ASC`
+
+	rows, err := d.db.QueryContext(ctx, query, string(status))
+	if err != nil {
+		return nil, NewQueryError("gaps", query, fmt.Errorf("failed to get gaps by status: %w", err))
+	}
+	defer rows.Close()
+
+	var gaps []models.Gap
+	for rows.Next() {
+		var gap models.Gap
+		var statusStr string
+		var priority int
+
+		err := rows.Scan(
+			&gap.ID,
+			&gap.Pair,
+			&gap.StartTime,
+			&gap.EndTime,
+			&gap.Interval,
+			&statusStr,
+			&gap.CreatedAt,
+			&gap.FilledAt,
+			&priority,
+			&gap.Attempts,
+			&gap.LastAttemptAt,
+			&gap.ErrorMessage,
+		)
+		if err != nil {
+			return nil, NewQueryError("gaps", query, fmt.Errorf("failed to scan gap: %w", err))
+		}
+
+		gap.Status = models.GapStatus(statusStr)
+		gap.Priority = models.GapPriority(priority)
+		gaps = append(gaps, gap)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, NewQueryError("gaps", query, fmt.Errorf("gap rows iteration error: %w", err))
+	}
+
+	return gaps, nil
+}
+
 // MarkGapFilled implements GapStorage.MarkGapFilled
 func (d *DuckDBStorage) MarkGapFilled(ctx context.Context, gapID string, filledAt time.Time) error {
 	start := time.Now()
