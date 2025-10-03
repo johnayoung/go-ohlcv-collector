@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/storage"
-	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // Mock implementations for testing

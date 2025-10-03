@@ -412,11 +412,10 @@ func (c *CoinbaseAdapter) fetchCandleChunk(ctx context.Context, pair string, sta
 		// Convert interface{} values to proper types
 		timestamp, ok1 := raw[0].(float64)
 		low, ok2 := convertToString(raw[1])
-		high, ok3 := convertToString(raw[2]) 
+		high, ok3 := convertToString(raw[2])
 		open, ok4 := convertToString(raw[3])
 		close, ok5 := convertToString(raw[4])
 		volume, ok6 := convertToString(raw[5])
-
 
 		if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 || !ok6 {
 			c.logger.Warn("failed to convert candle data types")

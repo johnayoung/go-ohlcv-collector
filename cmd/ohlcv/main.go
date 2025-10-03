@@ -27,12 +27,12 @@ import (
 	"time"
 
 	"github.com/johnayoung/go-ohlcv-collector/internal/collector"
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 	"github.com/johnayoung/go-ohlcv-collector/internal/exchange"
 	"github.com/johnayoung/go-ohlcv-collector/internal/gaps"
 	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/storage"
 	"github.com/johnayoung/go-ohlcv-collector/internal/validator"
-	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // CLI version information

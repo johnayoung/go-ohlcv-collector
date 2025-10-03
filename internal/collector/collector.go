@@ -22,10 +22,10 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/time/rate"
 
+	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 	"github.com/johnayoung/go-ohlcv-collector/internal/gaps"
 	"github.com/johnayoung/go-ohlcv-collector/internal/models"
 	"github.com/johnayoung/go-ohlcv-collector/internal/validator"
-	"github.com/johnayoung/go-ohlcv-collector/internal/contracts"
 )
 
 // Configuration constants from research findings

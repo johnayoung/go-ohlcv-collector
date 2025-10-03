@@ -314,7 +314,6 @@ func (d *DuckDBStorage) appendCandle(appender *duckdb.Appender, candle models.Ca
 	closeFloat, _ := close.Float64()
 	volumeFloat, _ := volume.Float64()
 
-
 	// Append row to DuckDB
 	if err := appender.AppendRow(
 		candle.Timestamp,
