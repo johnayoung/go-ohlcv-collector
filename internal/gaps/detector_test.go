@@ -708,7 +708,7 @@ func TestBackfillerImpl_StartGapFilling(t *testing.T) {
 					"1h")
 
 				ms.On("GetGapByID", mock.Anything, "gap-1").Return(gap, nil)
-				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Twice() // Once for filling status, once for failure/success
+				ms.On("StoreGap", mock.Anything, mock.AnythingOfType("models.Gap")).Return(nil).Once() // Once for filling status
 
 				// Mock successful exchange fetch
 				candles := []contracts.Candle{

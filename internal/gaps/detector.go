@@ -748,8 +748,8 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 		FilledGaps:     len(filledGaps),
 		PermanentGaps:  len(permanentGaps),
 		GapsByStatus:   gapsByStatus,
-		GapsByPriority: make(map[models.GapPriority]int),
-		GapsByPair:     make(map[string]int),
+		GapsByPriority: gapsByPriority,
+		GapsByPair:     gapsByPair,
 		SuccessRate:    successRate,
 	}, nil
 }
@@ -763,6 +763,41 @@ func (gm *GapManagerImpl) PrioritizeGaps(ctx context.Context) (int, error) {
 	}
 
 	priorityChanges := 0
+	now := time.Now().UTC()
+
+	for _, gap := range gaps {
+		// Calculate new priority based on gap age and duration
+		oldPriority := gap.Priority
+		gapAge := now.Sub(gap.CreatedAt)
+		gapDuration := gap.EndTime.Sub(gap.StartTime)
+
+		// Determine new priority based on age and duration
+		var newPriority models.GapPriority
+		if gapAge > 7*24*time.Hour || gapDuration > 24*time.Hour {
+			newPriority = models.PriorityCritical
+		} else if gapAge > 24*time.Hour || gapDuration > 6*time.Hour {
+			newPriority = models.PriorityHigh
+		} else if gapAge > 1*time.Hour {
+			newPriority = models.PriorityMedium
+		} else {
+			newPriority = models.PriorityLow
+		}
+
+		// Update if priority changed
+		if newPriority != oldPriority {
+			gap.Priority = newPriority
+			if err := gm.storage.StoreGap(ctx, gap); err != nil {
+				gm.logger.Warn("Failed to update gap priority",
+					"gap_id", gap.ID,
+					"old_priority", oldPriority,
+					"new_priority", newPriority,
+					"error", err,
+				)
+				continue
+			}
+			priorityChanges++
+		}
+	}
 
 	for _, gap := range detectedGaps {
 		oldPriority := gap.Priority

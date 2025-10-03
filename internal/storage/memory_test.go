@@ -137,6 +137,143 @@ func TestMemoryStorage_GapOperations(t *testing.T) {
 	assert.Contains(t, err.Error(), "gap not found")
 }
 
+func TestMemoryStorage_GetGapsByStatus(t *testing.T) {
+	storage := NewMemoryStorage()
+	ctx := context.Background()
+
+	err := storage.Initialize(ctx)
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+
+	// Create gaps with different statuses
+	gaps := []models.Gap{
+		{
+			ID:        "gap-detected-001",
+			Pair:      "BTC/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-2 * time.Hour),
+			EndTime:   now.Add(-1 * time.Hour),
+			Status:    models.GapStatusDetected,
+			CreatedAt: now.Add(-10 * time.Minute),
+			Priority:  models.PriorityHigh,
+		},
+		{
+			ID:        "gap-detected-002",
+			Pair:      "ETH/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-3 * time.Hour),
+			EndTime:   now.Add(-2 * time.Hour),
+			Status:    models.GapStatusDetected,
+			CreatedAt: now.Add(-15 * time.Minute),
+			Priority:  models.PriorityMedium,
+		},
+		{
+			ID:        "gap-filling-001",
+			Pair:      "BTC/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-4 * time.Hour),
+			EndTime:   now.Add(-3 * time.Hour),
+			Status:    models.GapStatusFilling,
+			CreatedAt: now.Add(-20 * time.Minute),
+			Priority:  models.PriorityMedium,
+		},
+		{
+			ID:        "gap-filled-001",
+			Pair:      "BTC/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-6 * time.Hour),
+			EndTime:   now.Add(-5 * time.Hour),
+			Status:    models.GapStatusFilled,
+			CreatedAt: now.Add(-30 * time.Minute),
+			Priority:  models.PriorityLow,
+			FilledAt:  &[]time.Time{now.Add(-5 * time.Minute)}[0],
+		},
+		{
+			ID:        "gap-permanent-001",
+			Pair:      "ETH/USD",
+			Interval:  "1h",
+			StartTime: now.Add(-8 * time.Hour),
+			EndTime:   now.Add(-7 * time.Hour),
+			Status:    models.GapStatusPermanent,
+			CreatedAt: now.Add(-40 * time.Minute),
+			Priority:  models.PriorityLow,
+		},
+	}
+
+	// Store all gaps
+	for _, gap := range gaps {
+		err = storage.StoreGap(ctx, gap)
+		require.NoError(t, err)
+	}
+
+	// Test getting gaps by status
+	tests := []struct {
+		name          string
+		status        models.GapStatus
+		expectedCount int
+		expectedIDs   []string
+	}{
+		{
+			name:          "get_detected_gaps",
+			status:        models.GapStatusDetected,
+			expectedCount: 2,
+			expectedIDs:   []string{"gap-detected-001", "gap-detected-002"},
+		},
+		{
+			name:          "get_filling_gaps",
+			status:        models.GapStatusFilling,
+			expectedCount: 1,
+			expectedIDs:   []string{"gap-filling-001"},
+		},
+		{
+			name:          "get_filled_gaps",
+			status:        models.GapStatusFilled,
+			expectedCount: 1,
+			expectedIDs:   []string{"gap-filled-001"},
+		},
+		{
+			name:          "get_permanent_gaps",
+			status:        models.GapStatusPermanent,
+			expectedCount: 1,
+			expectedIDs:   []string{"gap-permanent-001"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := storage.GetGapsByStatus(ctx, tt.status)
+			require.NoError(t, err)
+			assert.Len(t, result, tt.expectedCount)
+
+			// Verify gap IDs
+			gotIDs := make([]string, len(result))
+			for i, gap := range result {
+				gotIDs[i] = gap.ID
+			}
+			assert.ElementsMatch(t, tt.expectedIDs, gotIDs)
+
+			// Verify all gaps have the correct status
+			for _, gap := range result {
+				assert.Equal(t, tt.status, gap.Status)
+			}
+
+			// Verify gaps are ordered by priority (descending) and created_at (ascending)
+			if len(result) > 1 {
+				for i := 0; i < len(result)-1; i++ {
+					if result[i].Priority == result[i+1].Priority {
+						assert.True(t, result[i].CreatedAt.Before(result[i+1].CreatedAt) || result[i].CreatedAt.Equal(result[i+1].CreatedAt),
+							"Gaps with same priority should be ordered by creation time (ascending)")
+					} else {
+						assert.True(t, result[i].Priority > result[i+1].Priority,
+							"Gaps should be ordered by priority (descending)")
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestMemoryStorage_EdgeCases(t *testing.T) {
 	storage := NewMemoryStorage()
 	ctx := context.Background()
