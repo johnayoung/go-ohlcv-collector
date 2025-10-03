@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""
+Task Discovery System - Finds TODO and FIXME comments and creates GitHub issues
+"""
+import os
+import re
+import sys
+from pathlib import Path
+from typing import List, Tuple, Set
+
+try:
+    from github import Github, GithubException
+except ImportError:
+    print("Error: PyGithub is not installed. Install it with: pip install PyGithub")
+    sys.exit(1)
+
+
+def find_todos_in_file(file_path: Path, repo_root: Path) -> List[Tuple[str, int, str]]:
+    """
+    Find TODO and FIXME comments in a file.
+    
+    Args:
+        file_path: Path to the file to scan
+        repo_root: Root directory of the repository
+        
+    Returns:
+        List of tuples: (relative_path, line_number, comment_text)
+    """
+    todos = []
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line_num, line in enumerate(f, 1):
+                # Match TODO or FIXME comments
+                match = re.search(r'(TODO|FIXME):\s*(.+)', line, re.IGNORECASE)
+                if match:
+                    keyword = match.group(1)
+                    comment = match.group(2).strip()
+                    relative_path = file_path.relative_to(repo_root)
+                    todos.append((str(relative_path), line_num, f"{keyword}: {comment}"))
+    except Exception as e:
+        print(f"Warning: Could not read {file_path}: {e}")
+    
+    return todos
+
+
+def scan_repository(repo_root: Path) -> List[Tuple[str, int, str]]:
+    """
+    Scan repository for TODO and FIXME comments in Python and Go files.
+    
+    Args:
+        repo_root: Root directory of the repository
+        
+    Returns:
+        List of tuples: (file_path, line_number, comment_text)
+    """
+    all_todos = []
+    
+    # Find all Python and Go files
+    for pattern in ['**/*.py', '**/*.go']:
+        for file_path in repo_root.glob(pattern):
+            # Skip vendor, node_modules, and .git directories
+            if any(part in file_path.parts for part in ['.git', 'vendor', 'node_modules', '.venv', 'venv']):
+                continue
+            
+            todos = find_todos_in_file(file_path, repo_root)
+            all_todos.extend(todos)
+    
+    return all_todos
+
+
+def get_existing_issue_titles(repo) -> Set[str]:
+    """
+    Get titles of existing issues to avoid duplicates.
+    
+    Args:
+        repo: GitHub repository object
+        
+    Returns:
+        Set of existing issue titles
+    """
+    existing_titles = set()
+    
+    try:
+        # Get open issues with the 'generated-task' label
+        issues = repo.get_issues(state='open', labels=['generated-task'])
+        for issue in issues:
+            existing_titles.add(issue.title)
+    except GithubException as e:
+        print(f"Warning: Could not fetch existing issues: {e}")
+    
+    return existing_titles
+
+
+def create_issue_title(file_path: str, line_number: int) -> str:
+    """
+    Create a standardized issue title.
+    
+    Args:
+        file_path: Path to the file
+        line_number: Line number of the TODO/FIXME
+        
+    Returns:
+        Issue title string
+    """
+    return f"Fix TODO in {file_path} line {line_number}"
+
+
+def create_github_issues(todos: List[Tuple[str, int, str]], github_token: str, repo_name: str, max_issues: int = 5):
+    """
+    Create GitHub issues for TODO/FIXME comments.
+    
+    Args:
+        todos: List of tuples (file_path, line_number, comment_text)
+        github_token: GitHub authentication token
+        repo_name: Repository name in format 'owner/repo'
+        max_issues: Maximum number of issues to create (default: 5)
+    """
+    if not todos:
+        print("No TODOs or FIXMEs found in the repository.")
+        return
+    
+    print(f"Found {len(todos)} TODO/FIXME comments in the repository.")
+    
+    try:
+        # Initialize GitHub client
+        g = Github(github_token)
+        repo = g.get_repo(repo_name)
+        
+        # Get existing issue titles to avoid duplicates
+        existing_titles = get_existing_issue_titles(repo)
+        print(f"Found {len(existing_titles)} existing generated-task issues.")
+        
+        # Create issues
+        created_count = 0
+        skipped_count = 0
+        
+        for file_path, line_number, comment in todos:
+            if created_count >= max_issues:
+                print(f"\nReached maximum of {max_issues} issues. Stopping.")
+                break
+            
+            # Create issue title and check if it already exists
+            title = create_issue_title(file_path, line_number)
+            
+            if title in existing_titles:
+                skipped_count += 1
+                print(f"Skipping (already exists): {title}")
+                continue
+            
+            # Create issue body
+            body = f"""Found TODO/FIXME comment in the codebase:
+
+**File:** `{file_path}`  
+**Line:** {line_number}  
+**Comment:** {comment}
+
+This issue was automatically generated by the task discovery system.
+"""
+            
+            try:
+                # Create the issue
+                issue = repo.create_issue(
+                    title=title,
+                    body=body,
+                    labels=['generated-task']
+                )
+                created_count += 1
+                print(f"✓ Created issue #{issue.number}: {title}")
+            except GithubException as e:
+                print(f"✗ Failed to create issue for {file_path}:{line_number}: {e}")
+        
+        print(f"\n=== Summary ===")
+        print(f"Created: {created_count} issues")
+        print(f"Skipped: {skipped_count} issues (already exist)")
+        print(f"Total TODOs found: {len(todos)}")
+        
+    except GithubException as e:
+        print(f"Error: Failed to connect to GitHub: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: Unexpected error occurred: {e}")
+        sys.exit(1)
+
+
+def main():
+    """Main entry point for the task discovery system."""
+    # Get GitHub token from environment
+    github_token = os.environ.get('GITHUB_TOKEN')
+    if not github_token:
+        print("Error: GITHUB_TOKEN environment variable is not set.")
+        print("Please set it with: export GITHUB_TOKEN=your_token_here")
+        sys.exit(1)
+    
+    # Get repository name from environment or detect from git
+    repo_name = os.environ.get('GITHUB_REPOSITORY')
+    if not repo_name:
+        print("Error: GITHUB_REPOSITORY environment variable is not set.")
+        print("Please set it with: export GITHUB_REPOSITORY=owner/repo")
+        sys.exit(1)
+    
+    # Get repository root
+    repo_root = Path(__file__).parent.parent.resolve()
+    print(f"Scanning repository at: {repo_root}")
+    
+    # Scan for TODOs
+    todos = scan_repository(repo_root)
+    
+    # Create GitHub issues
+    create_github_issues(todos, github_token, repo_name)
+
+
+if __name__ == '__main__':
+    main()
