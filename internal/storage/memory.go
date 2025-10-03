@@ -362,6 +362,37 @@ func (m *MemoryStorage) GetGaps(ctx context.Context, pair string, interval strin
 	return result, nil
 }
 
+// GetGapsByStatus retrieves gaps with a specific status.
+func (m *MemoryStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	if ctx.Err() != nil {
+		return nil, NewQueryError("gaps", "", ctx.Err())
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.closed {
+		return nil, NewQueryError("gaps", "", errors.New("storage is closed"))
+	}
+
+	var result []models.Gap
+	for _, gap := range m.gaps {
+		if gap.Status == status {
+			result = append(result, *gap)
+		}
+	}
+
+	// Sort by priority (highest first) and then by creation time (oldest first)
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Priority != result[j].Priority {
+			return result[i].Priority > result[j].Priority
+		}
+		return result[i].CreatedAt.Before(result[j].CreatedAt)
+	})
+
+	return result, nil
+}
+
 // GetGapByID retrieves a specific gap by its unique identifier.
 func (m *MemoryStorage) GetGapByID(ctx context.Context, gapID string) (*models.Gap, error) {
 	if ctx.Err() != nil {
@@ -409,7 +440,7 @@ func (m *MemoryStorage) GetGapsByStatus(ctx context.Context, status models.GapSt
 		}
 	}
 
-	// Sort by priority (descending) and creation time (ascending)
+	// Sort by priority (descending) then by creation time (ascending)
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Priority != result[j].Priority {
 			return result[i].Priority > result[j].Priority
