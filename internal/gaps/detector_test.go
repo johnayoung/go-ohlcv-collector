@@ -41,6 +41,11 @@ func (m *MockStorage) GetGaps(ctx context.Context, pair, interval string) ([]mod
 	return args.Get(0).([]models.Gap), args.Error(1)
 }
 
+func (m *MockStorage) GetGapsByStatus(ctx context.Context, status models.GapStatus) ([]models.Gap, error) {
+	args := m.Called(ctx, status)
+	return args.Get(0).([]models.Gap), args.Error(1)
+}
+
 func (m *MockStorage) GetGapByID(ctx context.Context, gapID string) (*models.Gap, error) {
 	args := m.Called(ctx, gapID)
 	if args.Get(0) == nil {
