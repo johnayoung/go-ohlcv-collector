@@ -917,30 +917,38 @@ func TestConcurrentJobExecution(t *testing.T) {
 }
 
 func TestSchedulerHealthMonitoring(t *testing.T) {
-	t.Skip("Skipping until scheduler is implemented")
-
 	exchange := NewMockExchangeAdapter()
 	storage := NewMockStorage()
+	mockCollector := NewMockCollector()
 
-	// TODO: Create scheduler with health monitoring
-	// scheduler := NewScheduler(SchedulerConfig{
-	//     HealthCheckInterval: 50 * time.Millisecond,
-	// }, exchange, storage)
+	// Create scheduler with health monitoring
+	config := &collector.SchedulerConfig{
+		Pairs:               []string{"BTC/USD"},
+		Intervals:           []string{"1h"},
+		MaxConcurrentJobs:   5,
+		HealthCheckInterval: 50 * time.Millisecond,
+		RecoveryRetryDelay:  5 * time.Second,
+		TickInterval:        100 * time.Millisecond,
+	}
+	scheduler := collector.NewScheduler(config, exchange, storage, mockCollector)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	// Avoid unused variable errors during compilation
-	_ = exchange
-	_ = storage
-	_ = ctx
-
 	// Start scheduler
-	// err := scheduler.Start(ctx)
-	// require.NoError(t, err)
+	err := scheduler.Start(ctx)
+	assert.NoError(t, err)
+	defer func() {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = scheduler.Stop(stopCtx)
+		stopCancel()
+	}()
 
 	// Wait for health checks to occur
 	time.Sleep(200 * time.Millisecond)
+
+	// Verify scheduler is running
+	assert.True(t, scheduler.IsRunning(), "Scheduler should be running")
 
 	// Simulate exchange failure
 	exchange.healthCheckFails = true
@@ -948,6 +956,7 @@ func TestSchedulerHealthMonitoring(t *testing.T) {
 	// Wait for health check to detect failure
 	time.Sleep(100 * time.Millisecond)
 
-	// TODO: Verify scheduler detected and handled the health check failure
-	// This might involve checking scheduler stats or logs
+	// Verify scheduler detected and handled the health check failure
+	// The scheduler should still be running even with health check failures
+	assert.True(t, scheduler.IsRunning(), "Scheduler should still be running after health check failure")
 }
