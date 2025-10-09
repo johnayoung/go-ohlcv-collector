@@ -134,6 +134,12 @@ func (m *MockExchangeAdapter) SetShouldFailFetch(shouldFail bool) {
 	m.shouldFailFetch = shouldFail
 }
 
+func (m *MockExchangeAdapter) SetHealthCheckFails(fails bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.healthCheckFails = fails
+}
+
 func (m *MockExchangeAdapter) GetFetchCallCount() int64 {
 	return atomic.LoadInt64(&m.fetchCallCount)
 }
@@ -948,7 +954,7 @@ func TestSchedulerHealthMonitoring(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// Simulate exchange failure
-	exchange.healthCheckFails = true
+	exchange.SetHealthCheckFails(true)
 
 	// Wait for health check to detect failure
 	time.Sleep(150 * time.Millisecond)
