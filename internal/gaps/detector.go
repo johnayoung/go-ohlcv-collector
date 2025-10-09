@@ -713,18 +713,12 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 		return nil, fmt.Errorf("failed to get filling gaps: %w", err)
 	}
 
-	permanentGaps, err := gm.storage.GetGapsByStatus(ctx, models.GapStatusPermanent)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get permanent gaps: %w", err)
-	}
-
 	// Calculate gaps by status
 	gapsByStatus := map[models.GapStatus]int{
 		models.GapStatusDetected:  len(detectedGaps),
 		models.GapStatusFilling:   len(fillingGaps),
 		models.GapStatusFilled:    len(filledGaps),
 		models.GapStatusPermanent: len(permanentGaps),
-		models.GapStatusFilling:   len(fillingGaps),
 	}
 
 	totalGaps := len(detectedGaps) + len(filledGaps) + len(permanentGaps) + len(fillingGaps)
@@ -733,6 +727,9 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 		successRate = float64(len(filledGaps)) / float64(totalGaps) * 100
 	}
 
+	// Combine active gaps for finding oldest
+	allActiveGaps := append(detectedGaps, fillingGaps...)
+	
 	// Find oldest active gap
 	var oldestActiveGap *time.Time
 	for _, gap := range allActiveGaps {
@@ -740,6 +737,18 @@ func (gm *GapManagerImpl) GetGapStatistics(ctx context.Context) (*GapStatistics,
 			gapTime := gap.CreatedAt
 			oldestActiveGap = &gapTime
 		}
+	}
+
+	// Calculate gaps by priority
+	gapsByPriority := make(map[models.GapPriority]int)
+	for _, gap := range allActiveGaps {
+		gapsByPriority[gap.Priority]++
+	}
+
+	// Calculate gaps by pair
+	gapsByPair := make(map[string]int)
+	for _, gap := range allActiveGaps {
+		gapsByPair[gap.Pair]++
 	}
 
 	return &GapStatistics{
@@ -765,7 +774,7 @@ func (gm *GapManagerImpl) PrioritizeGaps(ctx context.Context) (int, error) {
 	priorityChanges := 0
 	now := time.Now().UTC()
 
-	for _, gap := range gaps {
+	for _, gap := range detectedGaps {
 		// Calculate new priority based on gap age and duration
 		oldPriority := gap.Priority
 		gapAge := now.Sub(gap.CreatedAt)
