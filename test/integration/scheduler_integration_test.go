@@ -917,37 +917,48 @@ func TestConcurrentJobExecution(t *testing.T) {
 }
 
 func TestSchedulerHealthMonitoring(t *testing.T) {
-	t.Skip("Skipping until scheduler is implemented")
-
 	exchange := NewMockExchangeAdapter()
 	storage := NewMockStorage()
+	mockCollector := NewMockCollector()
 
-	// TODO: Create scheduler with health monitoring
-	// scheduler := NewScheduler(SchedulerConfig{
-	//     HealthCheckInterval: 50 * time.Millisecond,
-	// }, exchange, storage)
+	// Create scheduler with health monitoring
+	config := &collector.SchedulerConfig{
+		Pairs:                 []string{"BTC/USD"},
+		Intervals:             []string{"1h"},
+		MaxConcurrentJobs:     5,
+		HealthCheckInterval:   50 * time.Millisecond,
+		RecoveryRetryDelay:    5 * time.Second,
+		EnableHourlyAlignment: false,
+		TickInterval:          100 * time.Millisecond,
+	}
+	scheduler := collector.NewScheduler(config, exchange, storage, mockCollector)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	// Avoid unused variable errors during compilation
-	_ = exchange
-	_ = storage
-	_ = ctx
-
 	// Start scheduler
-	// err := scheduler.Start(ctx)
-	// require.NoError(t, err)
+	err := scheduler.Start(ctx)
+	assert.NoError(t, err)
+	defer scheduler.Stop(context.Background())
 
-	// Wait for health checks to occur
+	// Verify scheduler is running
+	assert.True(t, scheduler.IsRunning())
+
+	// Wait for health checks to occur with healthy dependencies
 	time.Sleep(200 * time.Millisecond)
 
 	// Simulate exchange failure
 	exchange.healthCheckFails = true
 
 	// Wait for health check to detect failure
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 
-	// TODO: Verify scheduler detected and handled the health check failure
-	// This might involve checking scheduler stats or logs
+	// Verify scheduler detected and handled the health check failure
+	// The scheduler should continue running despite health check failures
+	// (health checks log warnings but don't stop the scheduler)
+	assert.True(t, scheduler.IsRunning(), "Scheduler should continue running despite health check failures")
+
+	// Verify stats are still accessible
+	stats := scheduler.GetStats()
+	assert.GreaterOrEqual(t, stats.TotalJobs, 1, "Should have at least one job configured")
 }
