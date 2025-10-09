@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -728,9 +727,7 @@ func validateRateLimit(t *testing.T, rateLimit contracts.RateLimit) {
 }
 
 // mockExchangeAdapter provides a minimal mock implementation for contract testing
-type mockExchangeAdapter struct {
-	mu sync.RWMutex
-}
+type mockExchangeAdapter struct{}
 
 func newMockExchangeAdapter() *mockExchangeAdapter {
 	return &mockExchangeAdapter{}
@@ -848,12 +845,11 @@ func (m *mockExchangeAdapter) GetLimits() contracts.RateLimit {
 }
 
 func (m *mockExchangeAdapter) WaitForLimit(ctx context.Context) error {
-	// Check for context cancellation
+	// Check for context cancellation immediately
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	// Simulate minimal wait
-	time.Sleep(10 * time.Millisecond)
+	// Return immediately - no need to simulate wait in tests
 	return nil
 }
 
